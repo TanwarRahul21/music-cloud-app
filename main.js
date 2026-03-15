@@ -52,7 +52,7 @@ let currentIndex = -1;
 let isSeeking = false;
 let player;
 
-const BUCKET = 'songs';
+const BUCKET = 'Songs';
 
 function loadPlaylists() {
   try {

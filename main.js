@@ -362,7 +362,7 @@ async function handleUpload(files) {
       const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, t.blob, { cacheControl: '3600', upsert: false });
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
-      const record = { id: t.id, name: t.name, size: t.size, duration: t.duration, addedAt: t.addedAt, url: pub.publicUrl, path };
+      const record = { id: t.id, name: t.name, size: t.size, duration: t.duration, addedAt: t.addedAt, url: pub.publicUrl, path, user_id: user.id };
       await saveDbTrack(record);
     }
     toast(`Added ${parsed.length} Song(s)`);

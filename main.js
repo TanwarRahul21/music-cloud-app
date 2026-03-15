@@ -365,7 +365,7 @@ async function handleUpload(files) {
       const record = { id: t.id, name: t.name, size: t.size, duration: t.duration, addedAt: t.addedAt, url: pub.publicUrl, path };
       await saveDbTrack(record);
     }
-    toast(`Added ${parsed.length} song(s)`);
+    toast(`Added ${parsed.length} Song(s)`);
     await refreshLibrary();
   } catch (err) {
     console.error('Upload error', err);

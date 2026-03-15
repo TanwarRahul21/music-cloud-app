@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Music Cloud (HTML/CSS/JS)
 
 A simple “music cloud” web app that stores your audio files in **your browser** (IndexedDB) and plays them like a modern music player.
@@ -38,3 +39,7 @@ python3 -m http.server 8000
 
 - This app is client-only (no backend). Your songs stay in this browser.
 - If you open the HTML file directly using `file://`, uploads/playback may behave inconsistently; use localhost.
+=======
+# music-cloud-app
+A cloud-based music player with upload, playlists, and streaming using Supabase.
+>>>>>>> 07ed5c7f3c07f3afb2c10357438da2b198ca7823

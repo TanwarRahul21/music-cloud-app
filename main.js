@@ -9,6 +9,10 @@ import {
 const els = {
   fileInput: document.getElementById("fileInput"),
   dropzone: document.getElementById("dropzone"),
+  uploadBtnLabel: document.getElementById("uploadBtnLabel"),
+  uploadFeedback: document.getElementById("uploadFeedback"),
+  uploadStatusText: document.getElementById("uploadStatusText"),
+  uploadProgressFill: document.getElementById("uploadProgressFill"),
   trackList: document.getElementById("trackList"),
   libraryMeta: document.getElementById("libraryMeta"),
   audio: document.getElementById("audio"),
@@ -51,6 +55,7 @@ let playlists = loadPlaylists();
 let currentIndex = -1;
 let isSeeking = false;
 let player;
+let isUploading = false;
 
 const BUCKET = 'Songs';
 
@@ -350,25 +355,67 @@ function promptAddToPlaylist(trackId) {
   renderPlaylists();
 }
 
+function setUploadUiState(active, message = '', progress = 0) {
+  isUploading = active;
+  els.fileInput.disabled = active;
+  els.dropzone.classList.toggle('dropzone--disabled', active);
+  els.uploadBtnLabel?.classList.toggle('btn--disabled', active);
+  els.uploadBtnLabel?.setAttribute('aria-disabled', active ? 'true' : 'false');
+
+  if (active) {
+    els.uploadFeedback?.classList.remove('hidden');
+    if (els.uploadStatusText) els.uploadStatusText.textContent = message;
+    if (els.uploadProgressFill) els.uploadProgressFill.style.width = `${Math.max(0, Math.min(100, progress))}%`;
+    return;
+  }
+
+  if (els.uploadStatusText && message) els.uploadStatusText.textContent = message;
+  if (els.uploadProgressFill) els.uploadProgressFill.style.width = '100%';
+}
+
+function hideUploadUiStateLater() {
+  window.setTimeout(() => {
+    if (isUploading) return;
+    els.uploadFeedback?.classList.add('hidden');
+    if (els.uploadProgressFill) els.uploadProgressFill.style.width = '0%';
+  }, 1000);
+}
+
 async function handleUpload(files) {
   if (!user) { toast('Login to upload'); showAuthModal(); return; }
   if (!files || !files.length) return;
+  setUploadUiState(true, 'Uploading song...', 0);
+
   try {
     const parsed = await processFiles(files);
-    if (!parsed.length) return toast('No valid audio files found');
+    if (!parsed.length) {
+      setUploadUiState(false, 'No valid audio files found', 0);
+      hideUploadUiStateLater();
+      return toast('No valid audio files found');
+    }
+
+    let uploaded = 0;
 
     for (const t of parsed) {
+      setUploadUiState(true, `Uploading song... (${uploaded + 1}/${parsed.length})`, (uploaded / parsed.length) * 100);
       const path = `${user.id}/${t.id}__${t.name}`;
       const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, t.blob, { cacheControl: '3600', upsert: false });
       if (upErr) throw upErr;
       const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
       const record = { id: t.id, name: t.name, size: t.size, duration: t.duration, addedAt: t.addedAt, url: pub.publicUrl, path, user_id: user.id };
       await saveDbTrack(record);
+      uploaded += 1;
+      setUploadUiState(true, `Uploading song... (${uploaded}/${parsed.length})`, (uploaded / parsed.length) * 100);
     }
-    toast(`Added ${parsed.length} Song(s)`);
+
+    setUploadUiState(false, `Upload complete (${uploaded}/${parsed.length})`, 100);
+    hideUploadUiStateLater();
+    toast(`Added ${uploaded} Song(s)`);
     await refreshLibrary();
   } catch (err) {
     console.error('Upload error', err);
+    setUploadUiState(false, 'Upload failed', 0);
+    hideUploadUiStateLater();
     toast('Upload failed');
   }
 }
@@ -379,11 +426,15 @@ function wireEvents() {
     els.fileInput.value = "";
   });
 
-  els.dropzone.addEventListener("click", () => els.fileInput.click());
+  els.dropzone.addEventListener("click", () => {
+    if (isUploading) return;
+    els.fileInput.click();
+  });
   els.dropzone.addEventListener("dragover", (e) => { e.preventDefault(); els.dropzone.classList.add("dragover"); });
   els.dropzone.addEventListener("dragleave", () => els.dropzone.classList.remove("dragover"));
   els.dropzone.addEventListener("drop", (e) => {
     e.preventDefault();
+    if (isUploading) return;
     els.dropzone.classList.remove("dragover");
     handleUpload(e.dataTransfer.files);
   });

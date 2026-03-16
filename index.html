@@ -42,8 +42,15 @@
             <div class="card__meta" id="libraryMeta">0 songs</div>
           </div>
           <div class="card__actions">
-            <label class="btn btn--primary" for="fileInput">Add songs</label>
+            <label class="btn btn--primary" id="uploadBtnLabel" for="fileInput">Add songs</label>
             <input id="fileInput" class="sr-only" type="file" accept="audio/*" multiple>
+          </div>
+        </div>
+
+        <div class="upload-feedback hidden" id="uploadFeedback" aria-live="polite">
+          <div class="upload-feedback__text" id="uploadStatusText">Uploading song...</div>
+          <div class="upload-feedback__bar">
+            <div class="upload-feedback__fill" id="uploadProgressFill"></div>
           </div>
         </div>
 

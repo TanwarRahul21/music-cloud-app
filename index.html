@@ -11,7 +11,32 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="theme-dark">
-  <div class="app-shell">
+  <div class="app-shell spotify-shell">
+    <aside class="sidebar" aria-label="Navigation">
+      <div class="sidebar__brand">
+        <div class="brand__logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none"><circle cx="12" cy="12" r="10"></circle><polygon points="10 8 16 12 10 16 10 8" fill="currentColor"></polygon></svg>
+        </div>
+        <div class="sidebar__title">Music Cloud</div>
+      </div>
+
+      <nav class="sidebar__nav">
+        <button class="sidebar__item sidebar__item--active" type="button">
+          <span aria-hidden="true">&#9835;</span>
+          <span>Home</span>
+        </button>
+        <button class="sidebar__item" type="button">
+          <span aria-hidden="true">&#9776;</span>
+          <span>Library</span>
+        </button>
+        <button class="sidebar__item" type="button">
+          <span aria-hidden="true">&#9733;</span>
+          <span>Playlists</span>
+        </button>
+      </nav>
+    </aside>
+
+    <div class="app-content">
     <header class="topbar">
       <div class="topbar__left">
         <div class="brand">
@@ -120,6 +145,7 @@
         <audio id="audio" preload="metadata"></audio>
       </section>
     </main>
+    </div>
   </div>
 
   <div class="modal" id="authModal" aria-hidden="true">

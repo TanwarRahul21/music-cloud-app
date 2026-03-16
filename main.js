@@ -263,12 +263,15 @@ function renderPlaylist() {
 
     const durText = track.duration == null ? "--:--" : formatTime(track.duration);
     row.innerHTML = `
+      <div class="row__thumb" aria-hidden="true">
+        <span class="row__thumb-icon">&#9835;</span>
+      </div>
       <div class="row__main">
         <div class="row__title"></div>
         <div class="row__sub"></div>
       </div>
       <div class="row__actions">
-        <button class="btn" type="button" data-action="play">Play</button>
+        <button class="btn btn--primary row__play" type="button" data-action="play">Play</button>
         <button class="btn btn--danger" type="button" data-action="delete">Delete</button>
         <button class="btn btn--ghost playlist-add" type="button">Add to playlist</button>
       </div>

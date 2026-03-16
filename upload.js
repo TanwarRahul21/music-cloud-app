@@ -1,5 +1,4 @@
 import { genId } from './utils.js';
-import { supabase } from "./supabase.js";
 
 const AUDIO_EXTENSIONS = ["mp3","wav","ogg","m4a","aac","flac","webm","opus"];
 
@@ -41,28 +40,6 @@ export function getDuration(blob){
   });
 }
 
-// upload song to supabase
-export async function uploadSong(file){
-
-  // create unique filename
-  const fileName = Date.now() + "_" + file.name;
-
-  const { data, error } = await supabase.storage
-    .from("Songs")
-    .upload(fileName, file);
-
-  if(error){
-    console.error("Upload failed:", error);
-    return null;
-  }
-
-  const { data: urlData } = supabase.storage
-    .from("Songs")
-    .getPublicUrl(fileName);
-
-  return urlData.publicUrl;
-}
-
 // process files
 export async function processFiles(fileList){
 
@@ -73,7 +50,6 @@ export async function processFiles(fileList){
   for(const file of files){
 
     const duration = await getDuration(file);
-    const cloudUrl = await uploadSong(file);
 
     validTracks.push({
       id: genId(),
@@ -82,7 +58,7 @@ export async function processFiles(fileList){
       type: file.type || "",
       addedAt: Date.now(),
       duration: duration,
-      url: cloudUrl
+      blob: file
     });
 
   }

@@ -18,8 +18,7 @@ export async function loadDbTracks() {
     .from('tracks')
     .select('*')
     .eq('user_id', userId)
-    .order('addedAt', { ascending: true });
-
+    .order('added_at', { ascending: true });
   if (error) {
     console.error('Error loading tracks:', error.message);
     return [];
@@ -42,7 +41,7 @@ export async function saveDbTrack(track) {
     duration: track.duration ?? null,
     url: track.url,
     path: track.path ?? null,
-    addedAt: track.addedAt ?? Date.now(),
+    added_at: new Date().toISOString()
   };
 
   const { error } = await supabase

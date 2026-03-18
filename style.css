@@ -223,6 +223,22 @@ body::before {
   box-shadow: 0 8px 28px rgba(124, 115, 255, 0.45);
 }
 
+.player__art-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+
+.player__art.has-image::after {
+  display: none;
+}
+
+.player__art.has-image .player__art-fallback {
+  display: none;
+}
+
 /* ─── Audio Visualizer ─── */
 .audio-visualizer {
   display: flex;
@@ -457,6 +473,22 @@ body::before {
 .row--active .row__thumb {
   box-shadow: 0 4px 16px rgba(124, 115, 255, 0.45);
   transform: scale(1.05);
+}
+
+.row__thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+
+.row__thumb.has-image::after {
+  display: none;
+}
+
+.row__thumb.has-image .row__thumb-fallback {
+  display: none;
 }
 
 .row__main {
@@ -1268,6 +1300,60 @@ input:not([type='range']):focus {
 }
 
 /* ─── Responsive: Mobile ─── */
+@media (max-width: 1023px) {
+  .desktop-sidebar--left,
+  .desktop-sidebar--right {
+    display: none !important;
+  }
+
+  .app-shell {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .main-content {
+    width: 100%;
+    padding: 24px 16px 220px;
+  }
+
+  .list {
+    grid-template-columns: 1fr;
+  }
+
+  .row {
+    width: 100%;
+  }
+
+  .bottom-player {
+    bottom: 76px;
+    z-index: 95;
+    height: auto;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .bottom-player__controls {
+    gap: 8px;
+  }
+
+  .bottom-player__progress {
+    max-width: 100%;
+  }
+
+  .bottom-player__right {
+    display: none;
+  }
+
+  .bottom-nav {
+    display: flex;
+  }
+
+  .fab {
+    display: none;
+  }
+}
+
 @media (max-width: 768px) {
   body {
     overflow: auto;
@@ -1280,7 +1366,7 @@ input:not([type='range']):focus {
   .bottom-player {
     grid-template-columns: 1fr;
     height: auto;
-    padding: 12px 16px calc(76px + 12px);
+    padding: 12px 16px;
     gap: 12px;
   }
 
@@ -1322,7 +1408,7 @@ input:not([type='range']):focus {
   }
 
   .main-content {
-    padding: 24px 16px 200px;
+    padding: 24px 16px 220px;
   }
 
   .library-header {
@@ -1942,6 +2028,22 @@ input:not([type='range']):focus {
       rgba(255, 255, 255, 0.15) 0%,
       transparent 60%
     );
+  }
+
+  .now-playing__img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+    display: block;
+  }
+
+  .now-playing__art.has-image::after {
+    display: none;
+  }
+
+  .now-playing__art.has-image .now-playing__fallback {
+    display: none;
   }
 
   .now-playing__info {

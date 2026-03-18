@@ -26,6 +26,7 @@ const els = {
   nowTitle: document.getElementById("nowTitle"),
   nowSub: document.getElementById("nowSub"),
   playerArt: document.getElementById("playerArt"),
+  playerArtImg: document.getElementById("playerArtImg"),
   authModal: document.getElementById("authModal"),
   authBackdrop: document.getElementById("authBackdrop"),
   authCloseBtn: document.getElementById("authCloseBtn"),
@@ -56,6 +57,7 @@ const els = {
   nowPlayingTitle: document.getElementById('nowPlayingTitle'),
   nowPlayingArtist: document.getElementById('nowPlayingArtist'),
   nowPlayingArt: document.getElementById('nowPlayingArt'),
+  nowPlayingImg: document.getElementById('nowPlayingImg'),
   playBtnDesktop: document.getElementById('playBtnDesktop'),
   prevBtnDesktop: document.getElementById('prevBtnDesktop'),
   nextBtnDesktop: document.getElementById('nextBtnDesktop'),
@@ -143,6 +145,15 @@ async function refreshLibrary() {
     const path = `${user.id}/${obj.name}`;
     const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
     const cachedTrack = cacheMap.get(trackId);
+    const artwork =
+      cachedTrack?.artwork_url ||
+      cachedTrack?.artworkUrl ||
+      cachedTrack?.thumbnail_url ||
+      cachedTrack?.thumbnailUrl ||
+      cachedTrack?.cover_url ||
+      cachedTrack?.coverUrl ||
+      null;
+
     return {
       id: trackId,
       name: original || obj.name,
@@ -150,6 +161,7 @@ async function refreshLibrary() {
       duration: cachedTrack?.duration ?? null,
       addedAt: cachedTrack?.addedAt ?? Date.now(),
       url: pub.publicUrl,
+      artwork,
       path,
     };
   }).sort((a, b) => a.name.localeCompare(b.name));
@@ -167,6 +179,39 @@ async function refreshLibrary() {
 function applySearchFilter() {
   // Search not implemented in this redesign
   filteredTracks = tracks;
+}
+
+function resolveArtworkUrl(track) {
+  const candidates = [
+    track?.artwork,
+    track?.artwork_url,
+    track?.artworkUrl,
+    track?.thumbnail,
+    track?.thumbnail_url,
+    track?.thumbnailUrl,
+    track?.cover,
+    track?.cover_url,
+    track?.coverUrl,
+  ];
+
+  return candidates.find((value) => typeof value === 'string' && value.trim()) || null;
+}
+
+function setArtwork(containerEl, imgEl, src, altText) {
+  if (!containerEl || !imgEl) return;
+
+  const hasArtwork = typeof src === 'string' && src.trim().length > 0;
+  containerEl.classList.toggle('has-image', hasArtwork);
+
+  if (hasArtwork) {
+    imgEl.src = src;
+    imgEl.alt = altText;
+    imgEl.classList.remove('hidden');
+    return;
+  }
+
+  imgEl.removeAttribute('src');
+  imgEl.classList.add('hidden');
 }
 
 function selectTrack(index, { autoplay }) {
@@ -187,6 +232,10 @@ function selectTrack(index, { autoplay }) {
   if (els.nowPlayingArtist) {
     els.nowPlayingArtist.textContent = `${formatBytes(track.size)} • ${track.duration ? formatTime(track.duration) : '--:--'}`;
   }
+
+  const artworkUrl = resolveArtworkUrl(track);
+  setArtwork(els.playerArt, els.playerArtImg, artworkUrl, `${track.name} cover art`);
+  setArtwork(els.nowPlayingArt, els.nowPlayingImg, artworkUrl, `${track.name} cover art`);
 
   // Apply dynamic color theming based on current track
   applyDynamicColor(currentIndex);
@@ -209,6 +258,10 @@ function stopPlayback() {
   els.timeDuration.textContent = "0:00";
   els.nowTitle.textContent = "Nothing yet";
   els.nowSub.textContent = "Select a song to start";
+  if (els.nowPlayingTitle) els.nowPlayingTitle.textContent = 'Nothing Playing';
+  if (els.nowPlayingArtist) els.nowPlayingArtist.textContent = 'Select a song';
+  setArtwork(els.playerArt, els.playerArtImg, null, 'Current track cover art');
+  setArtwork(els.nowPlayingArt, els.nowPlayingImg, null, 'Now playing cover art');
   els.audio.removeAttribute('src');
   updatePlayBtn();
   highlightActiveRow();
@@ -369,7 +422,8 @@ function renderPlaylist() {
 
     row.innerHTML = `
       <div class="row__thumb">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+        <img class="row__thumb-img hidden" alt="${track.name} cover art" loading="lazy">
+        <svg class="row__thumb-fallback" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
       </div>
       <div class="row__main">
         <div class="row__title">
@@ -386,6 +440,14 @@ function renderPlaylist() {
 
     row.querySelector('.track-name').textContent = track.name;
     row.querySelector('.row__sub').textContent = `${durText} • ${formatBytes(track.size)}`;
+
+    const rowThumb = row.querySelector('.row__thumb');
+    const rowThumbImg = row.querySelector('.row__thumb-img');
+    setArtwork(rowThumb, rowThumbImg, resolveArtworkUrl(track), `${track.name} cover art`);
+
+    rowThumbImg.addEventListener('error', () => {
+      setArtwork(rowThumb, rowThumbImg, null, `${track.name} cover art`);
+    });
 
     row.addEventListener('click', async (e) => {
       const btn = e.target.closest('button');
@@ -603,6 +665,14 @@ function wireEvents() {
 
   els.volume.addEventListener("input", () => {
     els.audio.volume = Number(els.volume.value);
+  });
+
+  els.playerArtImg?.addEventListener('error', () => {
+    setArtwork(els.playerArt, els.playerArtImg, null, 'Current track cover art');
+  });
+
+  els.nowPlayingImg?.addEventListener('error', () => {
+    setArtwork(els.nowPlayingArt, els.nowPlayingImg, null, 'Now playing cover art');
   });
 
   els.seek.addEventListener("pointerdown", () => { isSeeking = true; });

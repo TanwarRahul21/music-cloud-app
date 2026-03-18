@@ -1638,6 +1638,19 @@ input:not([type='range']):focus {
     border-radius: var(--radius-sm);
     border: 1px solid rgba(124, 115, 255, 0.2);
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+  }
+
+  .storage-quota:hover {
+    transform: translateY(-2px);
+    border-color: rgba(124, 115, 255, 0.35);
+    box-shadow: 0 8px 24px rgba(124, 115, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .storage-quota:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 
   .storage-quota__title {

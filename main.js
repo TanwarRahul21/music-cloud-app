@@ -51,6 +51,12 @@ const els = {
   themeToggle: document.getElementById('themeToggle'),
   logoutBtnSettings: document.getElementById('logoutBtnSettings'),
   settingsUserEmail: document.getElementById('settingsUserEmail'),
+  desktopNav: document.getElementById('desktopNav'),
+  desktopNavItems: document.querySelectorAll('.desktop-nav__item'),
+  bottomNavItems: document.querySelectorAll('.bottom-nav__item'),
+  storageQuota: document.getElementById('storageQuota'),
+  storageQuotaFill: document.getElementById('storageQuotaFill'),
+  storageQuotaText: document.getElementById('storageQuotaText'),
   // Desktop elements
   dragOverlay: document.getElementById('dragOverlay'),
   heroUploadBtn: document.getElementById('heroUploadBtn'),
@@ -74,6 +80,81 @@ let player;
 let isUploading = false;
 
 const BUCKET = 'Songs';
+const STORAGE_LIMIT_BYTES = 4 * 1024 * 1024 * 1024;
+const FAVORITES_KEY_PREFIX = 'music-cloud-favorites';
+
+let currentView = 'all';
+let favoriteTrackIds = new Set();
+
+function getFavoritesStorageKey() {
+  return `${FAVORITES_KEY_PREFIX}:${user?.id || 'guest'}`;
+}
+
+function loadFavorites() {
+  try {
+    const raw = localStorage.getItem(getFavoritesStorageKey());
+    const ids = raw ? JSON.parse(raw) : [];
+    favoriteTrackIds = new Set(Array.isArray(ids) ? ids : []);
+  } catch {
+    favoriteTrackIds = new Set();
+  }
+}
+
+function saveFavorites() {
+  localStorage.setItem(getFavoritesStorageKey(), JSON.stringify([...favoriteTrackIds]));
+}
+
+function isFavorite(trackId) {
+  return favoriteTrackIds.has(trackId);
+}
+
+function toggleFavorite(trackId) {
+  if (!trackId) return false;
+
+  if (favoriteTrackIds.has(trackId)) {
+    favoriteTrackIds.delete(trackId);
+  } else {
+    favoriteTrackIds.add(trackId);
+  }
+
+  saveFavorites();
+  return favoriteTrackIds.has(trackId);
+}
+
+function setActiveNavigation(view) {
+  const navToDesktopView = {
+    home: 'home',
+    library: 'library',
+    favorites: 'favorites',
+  };
+
+  const desktopActive = navToDesktopView[view] || 'home';
+  els.desktopNavItems.forEach((item) => {
+    item.classList.toggle('desktop-nav__item--active', item.dataset.nav === desktopActive);
+  });
+
+  const mobileActive = view === 'favorites' ? 'library' : (view === 'library' ? 'library' : 'home');
+  els.bottomNavItems.forEach((item) => {
+    item.classList.toggle('bottom-nav__item--active', item.dataset.nav === mobileActive);
+  });
+}
+
+function setView(view) {
+  currentView = view;
+  applySearchFilter();
+  renderPlaylist();
+  setActiveNavigation(view);
+}
+
+function updateStorageQuotaUi() {
+  if (!els.storageQuotaFill || !els.storageQuotaText) return;
+
+  const usedBytes = tracks.reduce((sum, track) => sum + (Number(track.size) || 0), 0);
+  const usedPct = Math.min(100, (usedBytes / STORAGE_LIMIT_BYTES) * 100);
+
+  els.storageQuotaFill.style.setProperty('--progress', `${usedPct.toFixed(2)}%`);
+  els.storageQuotaText.textContent = `${formatBytes(usedBytes)} of ${formatBytes(STORAGE_LIMIT_BYTES)} used`;
+}
 
 async function init() {
   initTheme(); // Initialize theme from localStorage
@@ -112,12 +193,16 @@ async function handleAuthChange(u) {
   }
 
   if (user) {
+    loadFavorites();
     hideAuthModal();
     await refreshLibrary();
   } else {
     showAuthModal();
     tracks = [];
     filteredTracks = [];
+    favoriteTrackIds = new Set();
+    currentView = 'all';
+    updateStorageQuotaUi();
     renderPlaylist();
   }
 }
@@ -166,6 +251,8 @@ async function refreshLibrary() {
     };
   }).sort((a, b) => a.name.localeCompare(b.name));
 
+  updateStorageQuotaUi();
+
   applySearchFilter();
   renderPlaylist();
 
@@ -177,7 +264,11 @@ async function refreshLibrary() {
 }
 
 function applySearchFilter() {
-  // Search not implemented in this redesign
+  if (currentView === 'favorites') {
+    filteredTracks = tracks.filter((track) => isFavorite(track.id));
+    return;
+  }
+
   filteredTracks = tracks;
 }
 
@@ -434,7 +525,7 @@ function renderPlaylist() {
       </div>
       <div class="row__actions">
         <button class="btn btn--danger" type="button" data-action="delete">Delete</button>
-        <button class="btn" type="button" data-action="playlist">Add</button>
+        <button class="btn" type="button" data-action="favorite">${isFavorite(track.id) ? 'Unfavorite' : 'Favorite'}</button>
       </div>
     `;
 
@@ -459,9 +550,16 @@ function renderPlaylist() {
         return;
       }
 
-      if (action === 'playlist') {
+      if (action === 'favorite') {
         e.stopPropagation();
-        toast('Playlists coming soon!');
+        const nowFavorite = toggleFavorite(track.id);
+        row.querySelector('[data-action="favorite"]').textContent = nowFavorite ? 'Unfavorite' : 'Favorite';
+        toast(nowFavorite ? 'Added to favorites' : 'Removed from favorites');
+
+        if (currentView === 'favorites' && !nowFavorite) {
+          applySearchFilter();
+          renderPlaylist();
+        }
         return;
       }
 
@@ -721,6 +819,53 @@ function wireEvents() {
   els.settingsBackdrop.addEventListener('click', hideSettingsModal);
   els.themeToggle.addEventListener('click', toggleTheme);
   els.logoutBtnSettings.addEventListener('click', handleLogout);
+
+  els.desktopNav?.addEventListener('click', (event) => {
+    const item = event.target.closest('.desktop-nav__item');
+    if (!item) return;
+
+    event.preventDefault();
+    const nav = item.dataset.nav;
+
+    if (nav === 'upload') {
+      showUploadModal();
+      return;
+    }
+
+    if (nav === 'favorites') {
+      setView('favorites');
+      return;
+    }
+
+    setView(nav === 'library' ? 'library' : 'home');
+    document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+  });
+
+  els.bottomNavItems.forEach((item) => {
+    item.addEventListener('click', () => {
+      const nav = item.dataset.nav;
+      if (nav === 'home') {
+        setView('home');
+        document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      if (nav === 'library') {
+        setView('library');
+      }
+    });
+  });
+
+  const openStorageSummary = () => {
+    const usedBytes = tracks.reduce((sum, track) => sum + (Number(track.size) || 0), 0);
+    const freeBytes = Math.max(0, STORAGE_LIMIT_BYTES - usedBytes);
+    toast(`Storage: ${formatBytes(usedBytes)} used, ${formatBytes(freeBytes)} free`);
+  };
+
+  els.storageQuota?.addEventListener('click', openStorageSummary);
+  els.storageQuota?.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    openStorageSummary();
+  });
 }
 
 function showAuthModal() {

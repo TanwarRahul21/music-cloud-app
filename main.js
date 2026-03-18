@@ -353,7 +353,7 @@ async function handleUpload(files) {
 
     for (const t of parsed) {
       setUploadUiState(true, `Uploading... (${uploaded + 1}/${parsed.length})`, (uploaded / parsed.length) * 100);
-      const path = `${user.id}/${t.id}__${t.name}`;
+      const path = `${user.id}/${t.id}__${t.storageName}`; // Use sanitized filename
       const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, t.blob, { cacheControl: '3600', upsert: false });
       if (upErr) {
         console.error('Upload error for file:', t.name, upErr);

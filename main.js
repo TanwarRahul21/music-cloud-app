@@ -82,12 +82,19 @@ let isUploading = false;
 const BUCKET = 'Songs';
 const STORAGE_LIMIT_BYTES = 4 * 1024 * 1024 * 1024;
 const FAVORITES_KEY_PREFIX = 'music-cloud-favorites';
+const LIBRARY_KEY_PREFIX = 'music-cloud-library';
 
 let currentView = 'all';
 let favoriteTrackIds = new Set();
+let libraryTrackIds = new Set();
+let hasSavedLibraryCollection = false;
 
 function getFavoritesStorageKey() {
   return `${FAVORITES_KEY_PREFIX}:${user?.id || 'guest'}`;
+}
+
+function getLibraryStorageKey() {
+  return `${LIBRARY_KEY_PREFIX}:${user?.id || 'guest'}`;
 }
 
 function loadFavorites() {
@@ -102,6 +109,64 @@ function loadFavorites() {
 
 function saveFavorites() {
   localStorage.setItem(getFavoritesStorageKey(), JSON.stringify([...favoriteTrackIds]));
+}
+
+function loadLibraryCollection() {
+  hasSavedLibraryCollection = false;
+  try {
+    const raw = localStorage.getItem(getLibraryStorageKey());
+    if (!raw) {
+      libraryTrackIds = new Set();
+      return;
+    }
+
+    const ids = JSON.parse(raw);
+    libraryTrackIds = new Set(Array.isArray(ids) ? ids : []);
+    hasSavedLibraryCollection = true;
+  } catch {
+    libraryTrackIds = new Set();
+  }
+}
+
+function saveLibraryCollection() {
+  localStorage.setItem(getLibraryStorageKey(), JSON.stringify([...libraryTrackIds]));
+}
+
+function isInLibrary(trackId) {
+  return libraryTrackIds.has(trackId);
+}
+
+function addToLibrary(trackId) {
+  if (!trackId || libraryTrackIds.has(trackId)) return false;
+  libraryTrackIds.add(trackId);
+  saveLibraryCollection();
+  return true;
+}
+
+function syncLibraryCollectionWithTracks() {
+  const currentTrackIds = new Set(tracks.map((track) => track.id));
+
+  if (!hasSavedLibraryCollection) {
+    libraryTrackIds = new Set(currentTrackIds);
+    saveLibraryCollection();
+    hasSavedLibraryCollection = true;
+    return;
+  }
+
+  for (const id of [...libraryTrackIds]) {
+    if (!currentTrackIds.has(id)) {
+      libraryTrackIds.delete(id);
+    }
+  }
+
+  // New uploads should appear in Library by default.
+  for (const id of currentTrackIds) {
+    if (!libraryTrackIds.has(id)) {
+      libraryTrackIds.add(id);
+    }
+  }
+
+  saveLibraryCollection();
 }
 
 function isFavorite(trackId) {
@@ -194,6 +259,7 @@ async function handleAuthChange(u) {
 
   if (user) {
     loadFavorites();
+    loadLibraryCollection();
     hideAuthModal();
     await refreshLibrary();
   } else {
@@ -201,6 +267,8 @@ async function handleAuthChange(u) {
     tracks = [];
     filteredTracks = [];
     favoriteTrackIds = new Set();
+    libraryTrackIds = new Set();
+    hasSavedLibraryCollection = false;
     currentView = 'all';
     updateStorageQuotaUi();
     renderPlaylist();
@@ -251,6 +319,7 @@ async function refreshLibrary() {
     };
   }).sort((a, b) => a.name.localeCompare(b.name));
 
+  syncLibraryCollectionWithTracks();
   updateStorageQuotaUi();
 
   applySearchFilter();
@@ -264,6 +333,11 @@ async function refreshLibrary() {
 }
 
 function applySearchFilter() {
+  if (currentView === 'library') {
+    filteredTracks = tracks.filter((track) => isInLibrary(track.id));
+    return;
+  }
+
   if (currentView === 'favorites') {
     filteredTracks = tracks.filter((track) => isFavorite(track.id));
     return;
@@ -525,7 +599,8 @@ function renderPlaylist() {
       </div>
       <div class="row__actions">
         <button class="btn btn--danger" type="button" data-action="delete">Delete</button>
-        <button class="btn" type="button" data-action="favorite">${isFavorite(track.id) ? 'Unfavorite' : 'Favorite'}</button>
+        <button class="btn" type="button" data-action="like">${isFavorite(track.id) ? 'Liked' : 'Like'}</button>
+        <button class="btn" type="button" data-action="library">${isInLibrary(track.id) ? 'In Library' : 'Add to Library'}</button>
       </div>
     `;
 
@@ -550,15 +625,27 @@ function renderPlaylist() {
         return;
       }
 
-      if (action === 'favorite') {
+      if (action === 'like') {
         e.stopPropagation();
         const nowFavorite = toggleFavorite(track.id);
-        row.querySelector('[data-action="favorite"]').textContent = nowFavorite ? 'Unfavorite' : 'Favorite';
+        row.querySelector('[data-action="like"]').textContent = nowFavorite ? 'Liked' : 'Like';
         toast(nowFavorite ? 'Added to favorites' : 'Removed from favorites');
 
         if (currentView === 'favorites' && !nowFavorite) {
           applySearchFilter();
           renderPlaylist();
+        }
+        return;
+      }
+
+      if (action === 'library') {
+        e.stopPropagation();
+        const added = addToLibrary(track.id);
+        if (added) {
+          row.querySelector('[data-action="library"]').textContent = 'In Library';
+          toast('Added to Library');
+        } else {
+          toast('Already in Library');
         }
         return;
       }
@@ -583,6 +670,12 @@ async function removeTrack(track) {
     return;
   }
   await deleteDbTrack(track.id);
+  if (track?.id) {
+    favoriteTrackIds.delete(track.id);
+    libraryTrackIds.delete(track.id);
+    saveFavorites();
+    saveLibraryCollection();
+  }
   toast(`"${track.name}" was deleted.`);
   await refreshLibrary();
 }

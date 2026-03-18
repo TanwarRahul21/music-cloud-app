@@ -26,8 +26,6 @@ const els = {
   nowTitle: document.getElementById("nowTitle"),
   nowSub: document.getElementById("nowSub"),
   playerArt: document.getElementById("playerArt"),
-  userEmail: document.getElementById("userEmail"),
-  logoutBtn: document.getElementById("logoutBtn"),
   authModal: document.getElementById("authModal"),
   authBackdrop: document.getElementById("authBackdrop"),
   authCloseBtn: document.getElementById("authCloseBtn"),
@@ -36,20 +34,22 @@ const els = {
   loginBtn: document.getElementById("loginBtn"),
   signupBtn: document.getElementById("signupBtn"),
   googleLoginBtn: document.getElementById("googleLoginBtn"),
-  phoneInput: document.getElementById("phoneInput"),
-  sendOtpBtn: document.getElementById("sendOtpBtn"),
-  otpInput: document.getElementById("otpInput"),
-  verifyOtpBtn: document.getElementById("verifyOtpBtn"),
   fab: document.getElementById("fab"),
   mobileUploadBtn: document.getElementById("mobileUploadBtn"),
   uploadModal: document.getElementById("uploadModal"),
   uploadBackdrop: document.getElementById("uploadBackdrop"),
   uploadCloseBtn: document.getElementById("uploadCloseBtn"),
   appShell: document.querySelector('.app-shell'),
-  topPlayer: document.getElementById('topPlayer'),
-  playBtnMobile: document.getElementById('playBtnMobile'),
-  prevBtnMobile: document.getElementById('prevBtnMobile'),
-  nextBtnMobile: document.getElementById('nextBtnMobile'),
+  bottomPlayer: document.getElementById('bottomPlayer'),
+  audioVisualizer: document.getElementById('audioVisualizer'),
+  visualizerCanvas: document.getElementById('visualizerCanvas'),
+  settingsModal: document.getElementById('settingsModal'),
+  settingsBackdrop: document.getElementById('settingsBackdrop'),
+  settingsCloseBtn: document.getElementById('settingsCloseBtn'),
+  settingsNavBtn: document.getElementById('settingsNavBtn'),
+  themeToggle: document.getElementById('themeToggle'),
+  logoutBtnSettings: document.getElementById('logoutBtnSettings'),
+  settingsUserEmail: document.getElementById('settingsUserEmail'),
 };
 
 let user = null;
@@ -64,6 +64,7 @@ let isUploading = false;
 const BUCKET = 'Songs';
 
 async function init() {
+  initTheme(); // Initialize theme from localStorage
   player = new Player(els.audio);
   wireEvents();
   await initDb();
@@ -86,15 +87,17 @@ async function init() {
       showAuthModal();
       return;
     }
-    
+
     await handleAuthChange(sessionUser);
   });
 }
 
 async function handleAuthChange(u) {
   user = u;
-  els.userEmail.textContent = user ? user.email : 'Guest';
   els.appShell.classList.toggle('is-authenticated', !!user);
+  if (els.settingsUserEmail) {
+    els.settingsUserEmail.textContent = user ? user.email : 'Not logged in';
+  }
 
   if (user) {
     hideAuthModal();
@@ -167,6 +170,9 @@ function selectTrack(index, { autoplay }) {
   els.nowTitle.textContent = track.name;
   els.nowSub.textContent = `${track.duration ? formatTime(track.duration) : '--:--'} • ${formatBytes(track.size)}`;
 
+  // Apply dynamic color theming based on current track
+  applyDynamicColor(currentIndex);
+
   highlightActiveRow();
 
   if (autoplay) {
@@ -215,7 +221,94 @@ function prevTrack() {
 function updatePlayBtn() {
   const icon = player.paused ? "▶" : "⏸";
   els.playBtn.textContent = icon;
-  if (els.playBtnMobile) els.playBtnMobile.textContent = icon;
+
+  // Update audio visualizer visibility
+  if (els.audioVisualizer) {
+    els.audioVisualizer.classList.toggle('playing', !player.paused);
+  }
+}
+
+// ─── Theme Management ─── //
+function initTheme() {
+  const savedTheme = localStorage.getItem('music-cloud-theme') || 'dark';
+  document.body.className = `theme-${savedTheme}`;
+  updateThemeColors(savedTheme);
+}
+
+function toggleTheme() {
+  const currentTheme = document.body.classList.contains('theme-light') ? 'light' : 'dark';
+  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  document.body.className = `theme-${newTheme}`;
+  localStorage.setItem('music-cloud-theme', newTheme);
+  updateThemeColors(newTheme);
+  toast(`Switched to ${newTheme} mode`);
+}
+
+function updateThemeColors(theme) {
+  const root = document.documentElement;
+  if (theme === 'light') {
+    root.style.setProperty('--bg', '#f8f8fc');
+    root.style.setProperty('--panel', '#ffffff');
+    root.style.setProperty('--surface', '#ffffff');
+    root.style.setProperty('--surface-2', '#f0f0f5');
+    root.style.setProperty('--hover', '#e8e8f0');
+    root.style.setProperty('--text', '#1a1a2e');
+    root.style.setProperty('--text-sec', '#5a5a7a');
+    root.style.setProperty('--line', 'rgba(0, 0, 0, 0.08)');
+    root.style.setProperty('--shadow-sm', '0 2px 12px rgba(0, 0, 0, 0.08)');
+    root.style.setProperty('--shadow', '0 8px 32px rgba(0, 0, 0, 0.12)');
+    root.style.setProperty('--shadow-lg', '0 16px 48px rgba(0, 0, 0, 0.15)');
+  } else {
+    root.style.setProperty('--bg', '#0b0b0f');
+    root.style.setProperty('--panel', '#121218');
+    root.style.setProperty('--surface', '#181820');
+    root.style.setProperty('--surface-2', '#202028');
+    root.style.setProperty('--hover', '#26262f');
+    root.style.setProperty('--text', '#fafaff');
+    root.style.setProperty('--text-sec', '#9494b8');
+    root.style.setProperty('--line', 'rgba(255, 255, 255, 0.06)');
+    root.style.setProperty('--shadow-sm', '0 2px 12px rgba(0, 0, 0, 0.3)');
+    root.style.setProperty('--shadow', '0 8px 32px rgba(0, 0, 0, 0.5)');
+    root.style.setProperty('--shadow-lg', '0 16px 48px rgba(0, 0, 0, 0.6)');
+  }
+}
+
+// ─── Dynamic Color Theming ─── //
+const COLOR_PALETTES = [
+  { primary: '#7c73ff', secondary: '#ff7eb3' }, // Purple-Pink
+  { primary: '#00d95f', secondary: '#00f5a0' }, // Green
+  { primary: '#ff6b6b', secondary: '#ffd93d' }, // Red-Yellow
+  { primary: '#4ecdc4', secondary: '#44a3ff' }, // Teal-Blue
+  { primary: '#ff9f43', secondary: '#ee5a6f' }, // Orange-Red
+  { primary: '#a29bfe', secondary: '#fd79a8' }, // Lavender-Pink
+];
+
+let currentColorIndex = 0;
+
+function applyDynamicColor(trackIndex) {
+  // Cycle through color palettes based on track index
+  currentColorIndex = trackIndex % COLOR_PALETTES.length;
+  const palette = COLOR_PALETTES[currentColorIndex];
+
+  const root = document.documentElement;
+  root.style.setProperty('--dynamic-accent', palette.primary);
+  root.style.setProperty('--dynamic-accent-2', palette.secondary);
+  root.style.setProperty('--dynamic-color-1', `${palette.primary}33`); // 20% opacity
+
+  // Smoothly transition accent colors
+  root.style.setProperty('--accent', palette.primary);
+  root.style.setProperty('--accent-2', palette.secondary);
+}
+
+// ─── Settings Modal ─── //
+function showSettingsModal() {
+  els.settingsModal.removeAttribute('inert');
+  els.settingsModal.classList.add('show');
+}
+
+function hideSettingsModal() {
+  els.settingsModal.classList.remove('show');
+  setTimeout(() => els.settingsModal.setAttribute('inert', ''), 300);
 }
 
 function highlightActiveRow() {
@@ -484,6 +577,11 @@ function wireEvents() {
   els.mobileUploadBtn.addEventListener('click', showUploadModal);
   els.uploadCloseBtn.addEventListener('click', hideUploadModal);
   els.uploadBackdrop.addEventListener('click', hideUploadModal);
+  els.settingsNavBtn.addEventListener('click', showSettingsModal);
+  els.settingsCloseBtn.addEventListener('click', hideSettingsModal);
+  els.settingsBackdrop.addEventListener('click', hideSettingsModal);
+  els.themeToggle.addEventListener('click', toggleTheme);
+  els.logoutBtnSettings.addEventListener('click', handleLogout);
 }
 
 function showAuthModal() {
@@ -518,8 +616,6 @@ function setAuthButtonsLoading(isLoading) {
   els.loginBtn.disabled = isLoading;
   els.signupBtn.disabled = isLoading;
   els.googleLoginBtn.disabled = isLoading;
-  els.sendOtpBtn.disabled = isLoading;
-  els.verifyOtpBtn.disabled = isLoading;
 }
 
 async function handleLogin(event) {
@@ -563,6 +659,7 @@ async function handleLogout(event) {
   event.preventDefault();
   const { error } = await supabase.auth.signOut();
   if (error) toast(error.message);
+  hideSettingsModal();
 }
 
 async function handleGoogleLogin(event) {
@@ -579,45 +676,10 @@ async function handleGoogleLogin(event) {
   }
 }
 
-async function handleSendOtp(event) {
-  event.preventDefault();
-  const phone = (els.phoneInput?.value || '').trim();
-  if (!phone) return toast('Phone number is required.');
-
-  setAuthButtonsLoading(true);
-  try {
-    const { error } = await supabase.auth.signInWithOtp({ phone });
-    if (error) return toast(error.message);
-    toast('OTP sent. Check your phone.');
-    els.otpInput?.focus();
-  } finally {
-    setAuthButtonsLoading(false);
-  }
-}
-
-async function handleVerifyOtp(event) {
-  event.preventDefault();
-  const phone = (els.phoneInput?.value || '').trim();
-  const token = (els.otpInput?.value || '').trim();
-  if (!phone || !token) return toast('Phone and OTP code are required.');
-
-  setAuthButtonsLoading(true);
-  try {
-    const { error } = await supabase.auth.verifyOtp({ phone, token, type: 'sms' });
-    if (error) return toast(error.message);
-    hideAuthModal();
-  } finally {
-    setAuthButtonsLoading(false);
-  }
-}
-
 // Auth event listeners
 els.loginBtn.addEventListener('click', handleLogin);
 els.signupBtn.addEventListener('click', handleSignup);
-els.logoutBtn.addEventListener('click', handleLogout);
 els.googleLoginBtn.addEventListener('click', handleGoogleLogin);
-els.sendOtpBtn.addEventListener('click', handleSendOtp);
-els.verifyOtpBtn.addEventListener('click', handleVerifyOtp);
 
 window.addEventListener('beforeunload', () => player?.cleanup());
 

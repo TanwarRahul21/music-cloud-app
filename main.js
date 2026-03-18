@@ -47,6 +47,9 @@ const els = {
   uploadCloseBtn: document.getElementById("uploadCloseBtn"),
   appShell: document.querySelector('.app-shell'),
   topPlayer: document.getElementById('topPlayer'),
+  playBtnMobile: document.getElementById('playBtnMobile'),
+  prevBtnMobile: document.getElementById('prevBtnMobile'),
+  nextBtnMobile: document.getElementById('nextBtnMobile'),
 };
 
 let user = null;
@@ -210,7 +213,9 @@ function prevTrack() {
 }
 
 function updatePlayBtn() {
-  els.playBtn.textContent = player.paused ? "▶" : "⏸";
+  const icon = player.paused ? "▶" : "⏸";
+  els.playBtn.textContent = icon;
+  if (els.playBtnMobile) els.playBtnMobile.textContent = icon;
 }
 
 function highlightActiveRow() {
@@ -244,8 +249,8 @@ function renderPlaylist() {
 
     const durText = track.duration == null ? "--:--" : formatTime(track.duration);
     row.innerHTML = `
-      <div class="row__thumb" aria-hidden="true">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+      <div class="row__thumb">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
       </div>
       <div class="row__main">
         <div class="row__title"></div>
@@ -328,6 +333,11 @@ function hideUploadUiStateLater() {
 async function handleUpload(files) {
   if (!user) { toast('Login to upload'); showAuthModal(); return; }
   if (!files || !files.length) return;
+
+  // Reset upload state first
+  isUploading = false;
+  els.uploadFeedback?.classList.add('hidden');
+
   setUploadUiState(true, 'Preparing upload...', 0);
 
   try {
@@ -335,7 +345,8 @@ async function handleUpload(files) {
     if (!parsed.length) {
       setUploadUiState(false, 'No valid audio files found', 0);
       hideUploadUiStateLater();
-      return toast('No valid audio files found');
+      toast('No valid audio files found');
+      return;
     }
 
     let uploaded = 0;
@@ -344,49 +355,89 @@ async function handleUpload(files) {
       setUploadUiState(true, `Uploading... (${uploaded + 1}/${parsed.length})`, (uploaded / parsed.length) * 100);
       const path = `${user.id}/${t.id}__${t.name}`;
       const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, t.blob, { cacheControl: '3600', upsert: false });
-      if (upErr) throw upErr;
+      if (upErr) {
+        console.error('Upload error for file:', t.name, upErr);
+        throw new Error(`Failed to upload ${t.name}: ${upErr.message}`);
+      }
       const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
       const record = { id: t.id, name: t.name, size: t.size, duration: t.duration, addedAt: t.addedAt, url: pub.publicUrl, path, user_id: user.id };
       await saveDbTrack(record);
       uploaded += 1;
-      setUploadUiState(true, `Uploading... (${uploaded}/${parsed.length})`, (uploaded / parsed.length) * 100);
+      setUploadUiState(true, `Uploaded ${uploaded}/${parsed.length}`, (uploaded / parsed.length) * 100);
     }
 
     setUploadUiState(false, `Upload complete!`, 100);
     hideUploadUiStateLater();
     toast(`Added ${uploaded} song(s)`);
     await refreshLibrary();
-    setTimeout(hideUploadModal, 1000);
+    setTimeout(hideUploadModal, 1200);
   } catch (err) {
     console.error('Upload error', err);
     setUploadUiState(false, 'Upload failed', 0);
     hideUploadUiStateLater();
-    toast('Upload failed. Check console for details.');
+    toast(err.message || 'Upload failed. Check console for details.');
   }
 }
 
 function wireEvents() {
   els.fileInput.addEventListener("change", () => {
-    handleUpload(els.fileInput.files);
-    els.fileInput.value = "";
+    if (els.fileInput.files.length > 0) {
+      handleUpload(els.fileInput.files);
+      els.fileInput.value = "";
+    }
   });
 
-  els.dropzone.addEventListener("click", () => {
+  // Better dropzone click handling
+  els.dropzone.addEventListener("click", (e) => {
+    e.stopPropagation();
     if (isUploading) return;
     els.fileInput.click();
   });
-  els.dropzone.addEventListener("dragover", (e) => { e.preventDefault(); els.dropzone.classList.add("dragover"); });
-  els.dropzone.addEventListener("dragleave", () => els.dropzone.classList.remove("dragover"));
+
+  // Keyboard support for dropzone
+  els.dropzone.addEventListener("keydown", (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (!isUploading) els.fileInput.click();
+    }
+  });
+
+  els.dropzone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isUploading) els.dropzone.classList.add("dragover");
+  });
+
+  els.dropzone.addEventListener("dragleave", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    els.dropzone.classList.remove("dragover");
+  });
+
   els.dropzone.addEventListener("drop", (e) => {
     e.preventDefault();
-    if (isUploading) return;
+    e.stopPropagation();
     els.dropzone.classList.remove("dragover");
-    handleUpload(e.dataTransfer.files);
+    if (isUploading) return;
+    if (e.dataTransfer.files.length > 0) {
+      handleUpload(e.dataTransfer.files);
+    }
+  });
+
+  // Make upload button label work better
+  els.uploadBtnLabel.addEventListener("click", (e) => {
+    if (isUploading) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
   });
 
   els.playBtn.addEventListener("click", playPause);
   els.prevBtn.addEventListener("click", prevTrack);
   els.nextBtn.addEventListener("click", nextTrack);
+  if (els.playBtnMobile) els.playBtnMobile.addEventListener("click", playPause);
+  if (els.prevBtnMobile) els.prevBtnMobile.addEventListener("click", prevTrack);
+  if (els.nextBtnMobile) els.nextBtnMobile.addEventListener("click", nextTrack);
 
   els.volume.addEventListener("input", () => {
     els.audio.volume = Number(els.volume.value);
@@ -418,6 +469,7 @@ function wireEvents() {
     let pct = 0;
     if (player.duration > 0) pct = (player.currentTime / player.duration) * 100;
     els.seek.value = pct;
+    els.seek.style.setProperty('--fill', `${pct}%`);
     els.timeCurrent.textContent = formatTime(player.currentTime);
   });
 
@@ -435,16 +487,31 @@ function wireEvents() {
 }
 
 function showAuthModal() {
+  els.authModal.removeAttribute('inert');
   els.authModal.classList.add('show');
+  setTimeout(() => els.authEmail.focus(), 300);
 }
 function hideAuthModal() {
   els.authModal.classList.remove('show');
+  setTimeout(() => els.authModal.setAttribute('inert', ''), 300);
 }
 function showUploadModal() {
+  // Reset upload state when opening modal
+  isUploading = false;
+  els.uploadFeedback?.classList.add('hidden');
+  if (els.uploadProgressFill) els.uploadProgressFill.style.width = '0%';
+  els.fileInput.disabled = false;
+  els.dropzone.classList.remove('dropzone--disabled');
+  els.uploadBtnLabel?.classList.remove('btn--disabled');
+  els.uploadBtnLabel?.setAttribute('aria-disabled', 'false');
+
+  els.uploadModal.removeAttribute('inert');
   els.uploadModal.classList.add('show');
+  setTimeout(() => els.dropzone.focus(), 300);
 }
 function hideUploadModal() {
   els.uploadModal.classList.remove('show');
+  setTimeout(() => els.uploadModal.setAttribute('inert', ''), 300);
 }
 
 function setAuthButtonsLoading(isLoading) {

@@ -19,13 +19,152 @@
     <!-- Audio Visualizer Canvas (background) -->
     <canvas id="visualizerCanvas" class="visualizer-canvas"></canvas>
 
+    <!-- Desktop Left Sidebar -->
+    <aside class="desktop-sidebar desktop-sidebar--left">
+      <div class="sidebar-header">
+        <div class="logo">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 18V5l12-2v13"></path>
+            <circle cx="6" cy="18" r="3"></circle>
+            <circle cx="18" cy="16" r="3"></circle>
+          </svg>
+          <span class="logo-text">Music Cloud</span>
+        </div>
+      </div>
+
+      <nav class="desktop-nav">
+        <a href="#" class="desktop-nav__item desktop-nav__item--active">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+          <span>Home</span>
+        </a>
+        <a href="#" class="desktop-nav__item">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 18V5l12-2v13"></path>
+            <circle cx="6" cy="18" r="3"></circle>
+            <circle cx="18" cy="16" r="3"></circle>
+          </svg>
+          <span>Library</span>
+        </a>
+        <a href="#" class="desktop-nav__item">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <heart/>
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+          </svg>
+          <span>Favorites</span>
+        </a>
+        <a href="#" class="desktop-nav__item">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+          <span>Upload</span>
+        </a>
+      </nav>
+
+      <div class="storage-quota">
+        <div class="storage-quota__title">Storage</div>
+        <div class="storage-quota__bar">
+          <div class="storage-quota__fill" style="--progress: 65%"></div>
+        </div>
+        <div class="storage-quota__text">2.4 GB of 4 GB used</div>
+      </div>
+    </aside>
+
+    <!-- Desktop Right Sidebar -->
+    <aside class="desktop-sidebar desktop-sidebar--right">
+      <div class="now-playing">
+        <div class="now-playing__header">
+          <h3>Now Playing</h3>
+          <div class="quality-badge">Lossless</div>
+        </div>
+
+        <div class="now-playing__art" id="nowPlayingArt">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M9 18V5l12-2v13"></path>
+            <circle cx="6" cy="18" r="3"></circle>
+            <circle cx="18" cy="16" r="3"></circle>
+          </svg>
+        </div>
+
+        <div class="now-playing__info">
+          <div class="now-playing__title" id="nowPlayingTitle">Nothing Playing</div>
+          <div class="now-playing__artist" id="nowPlayingArtist">Select a song</div>
+        </div>
+
+        <!-- Desktop Audio Visualizer -->
+        <div class="desktop-visualizer">
+          <canvas class="desktop-visualizer__canvas" id="desktopVisualizerCanvas" width="280" height="120"></canvas>
+        </div>
+
+        <div class="now-playing__controls">
+          <button class="iconbtn" id="prevBtnDesktop">
+            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+              <polygon points="19 20 9 12 19 4 19 20"></polygon>
+              <line x1="5" y1="19" x2="5" y2="5"></line>
+            </svg>
+          </button>
+          <button class="playbtn" id="playBtnDesktop">▶</button>
+          <button class="iconbtn" id="nextBtnDesktop">
+            <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+              <polygon points="5 4 15 12 5 20 5 4"></polygon>
+              <line x1="19" y1="5" x2="19" y2="19"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </aside>
+
     <main class="main-content">
+      <!-- Desktop Hero Banner -->
+      <div class="hero-banner">
+        <div class="hero-banner__content">
+          <h1 class="hero-banner__title">Welcome back</h1>
+          <p class="hero-banner__subtitle">Discover your perfect sound in high-fidelity</p>
+          <button class="btn btn--hero" id="heroUploadBtn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            Upload Music
+          </button>
+        </div>
+        <div class="hero-banner__visual">
+          <div class="hero-waveform">
+            <div class="hero-waveform__bar"></div>
+            <div class="hero-waveform__bar"></div>
+            <div class="hero-waveform__bar"></div>
+            <div class="hero-waveform__bar"></div>
+            <div class="hero-waveform__bar"></div>
+          </div>
+        </div>
+      </div>
+
       <div class="library-header">
         <h1 class="library-header__title">Library</h1>
         <div class="library-header__meta" id="libraryMeta">0 songs</div>
       </div>
       <div class="list" id="trackList" role="list"></div>
     </main>
+
+    <!-- Global Drag Overlay -->
+    <div class="drag-overlay" id="dragOverlay">
+      <div class="drag-overlay__content">
+        <div class="drag-overlay__icon">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="17 8 12 3 7 8"></polyline>
+            <line x1="12" y1="3" x2="12" y2="15"></line>
+          </svg>
+        </div>
+        <div class="drag-overlay__title">Drop to Upload</div>
+        <div class="drag-overlay__subtitle">Release files to add them to your library</div>
+      </div>
+    </div>
 
     <!-- Bottom Player (Spotify-style) -->
     <div class="bottom-player" id="bottomPlayer">

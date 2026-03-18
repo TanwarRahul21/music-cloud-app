@@ -50,6 +50,16 @@ const els = {
   themeToggle: document.getElementById('themeToggle'),
   logoutBtnSettings: document.getElementById('logoutBtnSettings'),
   settingsUserEmail: document.getElementById('settingsUserEmail'),
+  // Desktop elements
+  dragOverlay: document.getElementById('dragOverlay'),
+  heroUploadBtn: document.getElementById('heroUploadBtn'),
+  nowPlayingTitle: document.getElementById('nowPlayingTitle'),
+  nowPlayingArtist: document.getElementById('nowPlayingArtist'),
+  nowPlayingArt: document.getElementById('nowPlayingArt'),
+  playBtnDesktop: document.getElementById('playBtnDesktop'),
+  prevBtnDesktop: document.getElementById('prevBtnDesktop'),
+  nextBtnDesktop: document.getElementById('nextBtnDesktop'),
+  desktopVisualizerCanvas: document.getElementById('desktopVisualizerCanvas'),
 };
 
 let user = null;
@@ -170,6 +180,14 @@ function selectTrack(index, { autoplay }) {
   els.nowTitle.textContent = track.name;
   els.nowSub.textContent = `${track.duration ? formatTime(track.duration) : '--:--'} • ${formatBytes(track.size)}`;
 
+  // Update desktop "Now Playing" sidebar
+  if (els.nowPlayingTitle) {
+    els.nowPlayingTitle.textContent = track.name;
+  }
+  if (els.nowPlayingArtist) {
+    els.nowPlayingArtist.textContent = `${formatBytes(track.size)} • ${track.duration ? formatTime(track.duration) : '--:--'}`;
+  }
+
   // Apply dynamic color theming based on current track
   applyDynamicColor(currentIndex);
 
@@ -221,6 +239,11 @@ function prevTrack() {
 function updatePlayBtn() {
   const icon = player.paused ? "▶" : "⏸";
   els.playBtn.textContent = icon;
+
+  // Update desktop play button
+  if (els.playBtnDesktop) {
+    els.playBtnDesktop.textContent = icon;
+  }
 
   // Update audio visualizer visibility
   if (els.audioVisualizer) {
@@ -340,13 +363,19 @@ function renderPlaylist() {
     row.className = 'row';
     row.dataset.id = track.id;
 
+    // Determine quality based on size (rough estimation)
+    const qualityBadge = track.size > 10000000 ? 'Lossless' : '320kbps';
     const durText = track.duration == null ? "--:--" : formatTime(track.duration);
+
     row.innerHTML = `
       <div class="row__thumb">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
       </div>
       <div class="row__main">
-        <div class="row__title"></div>
+        <div class="row__title">
+          <span class="track-name"></span>
+          <div class="quality-badge">${qualityBadge}</div>
+        </div>
         <div class="row__sub"></div>
       </div>
       <div class="row__actions">
@@ -354,7 +383,8 @@ function renderPlaylist() {
         <button class="btn" type="button" data-action="playlist">Add</button>
       </div>
     `;
-    row.querySelector('.row__title').textContent = track.name;
+
+    row.querySelector('.track-name').textContent = track.name;
     row.querySelector('.row__sub').textContent = `${durText} • ${formatBytes(track.size)}`;
 
     row.addEventListener('click', async (e) => {
@@ -366,7 +396,7 @@ function renderPlaylist() {
         await removeTrack(track);
         return;
       }
-      
+
       if (action === 'playlist') {
         e.stopPropagation();
         toast('Playlists coming soon!');
@@ -531,6 +561,45 @@ function wireEvents() {
   if (els.playBtnMobile) els.playBtnMobile.addEventListener("click", playPause);
   if (els.prevBtnMobile) els.prevBtnMobile.addEventListener("click", prevTrack);
   if (els.nextBtnMobile) els.nextBtnMobile.addEventListener("click", nextTrack);
+
+  // Desktop controls
+  if (els.playBtnDesktop) els.playBtnDesktop.addEventListener("click", playPause);
+  if (els.prevBtnDesktop) els.prevBtnDesktop.addEventListener("click", prevTrack);
+  if (els.nextBtnDesktop) els.nextBtnDesktop.addEventListener("click", nextTrack);
+  if (els.heroUploadBtn) els.heroUploadBtn.addEventListener("click", showUploadModal);
+
+  // Global drag and drop
+  let dragCounter = 0;
+
+  document.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    dragCounter++;
+    if (dragCounter === 1) {
+      els.dragOverlay?.classList.add('show');
+    }
+  });
+
+  document.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    dragCounter--;
+    if (dragCounter === 0) {
+      els.dragOverlay?.classList.remove('show');
+    }
+  });
+
+  document.addEventListener('dragover', (e) => {
+    e.preventDefault();
+  });
+
+  document.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dragCounter = 0;
+    els.dragOverlay?.classList.remove('show');
+
+    if (e.dataTransfer.files.length > 0) {
+      handleUpload(e.dataTransfer.files);
+    }
+  });
 
   els.volume.addEventListener("input", () => {
     els.audio.volume = Number(els.volume.value);

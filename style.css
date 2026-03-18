@@ -227,17 +227,20 @@ body::before {
   width: min(920px, 100%);
   height: 100%;
   margin: 0 auto;
-  display: grid;
-  grid-template-rows: auto auto auto auto auto auto;
-  align-content: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 22px;
-  padding: 26px 20px max(26px, env(safe-area-inset-bottom));
+  padding: max(20px, env(safe-area-inset-top)) clamp(16px, 5vw, 34px) max(26px, env(safe-area-inset-bottom));
   position: relative;
+  box-sizing: border-box;
 }
 
 .expanded-player__topbar {
   display: flex;
   justify-content: flex-start;
+  width: min(760px, 85vw);
 }
 
 .expanded-player__minimize {
@@ -285,6 +288,9 @@ body::before {
   text-align: center;
   display: grid;
   gap: 10px;
+  width: min(760px, 85vw);
+  max-width: 85vw;
+  min-width: 0;
 }
 
 .expanded-player__title {
@@ -294,6 +300,15 @@ body::before {
   line-height: 1.12;
   color: #f9f6ff;
   text-wrap: balance;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  word-wrap: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .expanded-player__meta-row {
@@ -307,6 +322,12 @@ body::before {
 .expanded-player__meta {
   color: #cbc2df;
   font-size: 14px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  word-wrap: break-word;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .expanded-player__meta-row .quality-badge {
@@ -318,7 +339,8 @@ body::before {
   grid-template-columns: 48px 1fr 48px;
   align-items: center;
   gap: 12px;
-  width: min(760px, 100%);
+  width: min(760px, 85vw);
+  max-width: 85vw;
   margin: 0 auto;
 }
 
@@ -331,12 +353,14 @@ body::before {
 }
 
 .expanded-player__controls {
-  width: min(760px, 100%);
+  width: min(760px, 85vw);
+  max-width: 85vw;
   margin: 0 auto;
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 14px;
+  min-width: 0;
 }
 
 .expanded-control {
@@ -2751,9 +2775,12 @@ input:not([type='range']):focus {
   }
 
   .expanded-player__content {
-    align-content: start;
+    justify-content: center;
+    align-items: center;
     gap: 18px;
-    padding-top: max(22px, env(safe-area-inset-top));
+    padding-top: max(16px, env(safe-area-inset-top));
+    padding-right: clamp(14px, 4vw, 22px);
+    padding-left: clamp(14px, 4vw, 22px);
   }
 
   .expanded-player__art {
@@ -2788,6 +2815,8 @@ input:not([type='range']):focus {
     width: min(860px, 100%);
     padding-top: 38px;
     padding-bottom: 38px;
+    padding-right: clamp(20px, 3vw, 36px);
+    padding-left: clamp(20px, 3vw, 36px);
   }
 
   .expanded-player__content::before {

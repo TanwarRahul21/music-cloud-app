@@ -29,7 +29,6 @@ const els = {
   playerArtImg: document.getElementById("playerArtImg"),
   authModal: document.getElementById("authModal"),
   authBackdrop: document.getElementById("authBackdrop"),
-  authCloseBtn: document.getElementById("authCloseBtn"),
   authEmail: document.getElementById("authEmail"),
   authPassword: document.getElementById("authPassword"),
   loginBtn: document.getElementById("loginBtn"),
@@ -73,6 +72,7 @@ const els = {
   storageQuota: document.getElementById('storageQuota'),
   storageQuotaFill: document.getElementById('storageQuotaFill'),
   storageQuotaText: document.getElementById('storageQuotaText'),
+  sidebarLogoutBtn: document.getElementById('sidebarLogoutBtn'),
   // Desktop elements
   dragOverlay: document.getElementById('dragOverlay'),
   heroUploadBtn: document.getElementById('heroUploadBtn'),
@@ -242,6 +242,7 @@ function updateStorageQuotaUi() {
 
 async function init() {
   initTheme(); // Initialize theme from localStorage
+  setAppVisibility(false);
   player = new Player(els.audio);
   wireEvents();
   await initDb();
@@ -271,7 +272,7 @@ async function init() {
 
 async function handleAuthChange(u) {
   user = u;
-  els.appShell.classList.toggle('is-authenticated', !!user);
+  setAppVisibility(!!user);
   if (els.settingsUserEmail) {
     els.settingsUserEmail.textContent = user ? user.email : 'Not logged in';
   }
@@ -283,6 +284,7 @@ async function handleAuthChange(u) {
     await refreshLibrary();
   } else {
     showAuthModal();
+    closeExpandedPlayer();
     tracks = [];
     filteredTracks = [];
     favoriteTrackIds = new Set();
@@ -646,6 +648,12 @@ const COLOR_PALETTES = [
 ];
 
 let currentColorIndex = 0;
+
+function setAppVisibility(isVisible) {
+  if (!els.appShell) return;
+  els.appShell.classList.toggle('is-authenticated', isVisible);
+  els.appShell.style.display = isVisible ? 'flex' : 'none';
+}
 
 function applyDynamicColor(trackIndex) {
   // Cycle through color palettes based on track index
@@ -1088,8 +1096,6 @@ function wireEvents() {
   });
 
   // Modal wiring
-  els.authCloseBtn.addEventListener('click', hideAuthModal);
-  els.authBackdrop.addEventListener('click', hideAuthModal);
   els.fab.addEventListener('click', showUploadModal);
   els.mobileUploadBtn.addEventListener('click', showUploadModal);
   els.uploadCloseBtn.addEventListener('click', hideUploadModal);
@@ -1099,6 +1105,7 @@ function wireEvents() {
   els.settingsBackdrop.addEventListener('click', hideSettingsModal);
   els.themeToggle.addEventListener('click', toggleTheme);
   els.logoutBtnSettings.addEventListener('click', handleLogout);
+  els.sidebarLogoutBtn?.addEventListener('click', handleLogout);
 
   els.desktopNav?.addEventListener('click', (event) => {
     const item = event.target.closest('.desktop-nav__item');
@@ -1220,10 +1227,24 @@ async function handleSignup(event) {
 }
 
 async function handleLogout(event) {
-  event.preventDefault();
-  const { error } = await supabase.auth.signOut();
-  if (error) toast(error.message);
+  event?.preventDefault();
+
+  stopPlayback();
+  closeExpandedPlayer();
+  hideUploadModal();
   hideSettingsModal();
+  setAppVisibility(false);
+  showAuthModal();
+
+  sessionStorage.clear();
+  localStorage.clear();
+
+  const { error } = await supabase.auth.signOut();
+  if (error) {
+    toast(error.message);
+  }
+
+  await handleAuthChange(null);
 }
 
 async function handleGoogleLogin(event) {

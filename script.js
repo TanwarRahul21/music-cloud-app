@@ -220,19 +220,36 @@ function renderPlaylist(){
   if(els.trackList) els.trackList.innerHTML="";
   if(els.libraryMeta) els.libraryMeta.textContent=tracks.length+" songs";
 
+  // Show/hide empty state
+  const emptyState = document.getElementById("emptyState");
+  if(emptyState) emptyState.style.display = tracks.length ? "none" : "flex";
+
   tracks.forEach((t,i)=>{
     const row=document.createElement("div");
     row.className="row";
+    if(i===currentIndex) row.classList.add("row--active");
 
     row.innerHTML=`
-      <div>
-        <b>${t.name}</b><br>
-        ${formatTime(t.duration)} • ${formatBytes(t.size)}
+      <div class="row__thumb">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 18V5l12-2v13"></path>
+          <circle cx="6" cy="18" r="3"></circle>
+          <circle cx="18" cy="16" r="3"></circle>
+        </svg>
+      </div>
+      <div class="row__main">
+        <div class="row__title">${t.name}</div>
+        <div class="row__sub">${formatTime(t.duration)} &nbsp;·&nbsp; ${formatBytes(t.size)}</div>
       </div>
       <button data-i="${i}">Play</button>
     `;
 
-    row.querySelector("button").onclick=()=>{
+    row.querySelector("button").onclick=(e)=>{
+      e.stopPropagation();
+      setCurrentByIndex(i,{autoplay:true});
+    };
+
+    row.onclick=()=>{
       setCurrentByIndex(i,{autoplay:true});
     };
 
@@ -261,10 +278,37 @@ function wireEvents(){
     });
   }
 
+  if(els.seek && els.audio){
+    els.seek.addEventListener("mousedown",()=>{ isSeeking=true; });
+    els.seek.addEventListener("input",()=>{
+      if(els.audio.duration){
+        els.audio.currentTime=(els.seek.value/100)*els.audio.duration;
+      }
+    });
+    els.seek.addEventListener("mouseup",()=>{ isSeeking=false; });
+
+    els.audio.addEventListener("timeupdate",()=>{
+      if(!isSeeking && els.audio.duration){
+        const pct=(els.audio.currentTime/els.audio.duration)*100;
+        els.seek.value=pct;
+        if(els.timeCurrent) els.timeCurrent.textContent=formatTime(els.audio.currentTime);
+      }
+    });
+
+    els.audio.addEventListener("loadedmetadata",()=>{
+      if(els.timeDuration) els.timeDuration.textContent=formatTime(els.audio.duration);
+    });
+  }
+
   if(els.clearAllBtn){
     els.clearAllBtn.onclick=async()=>{
+      if(!confirm("Remove all tracks?")) return;
       await clearAllTracks();
       tracks=[];
+      currentIndex=-1;
+      if(els.audio){ els.audio.src=""; }
+      if(els.nowTitle) els.nowTitle.textContent="Nothing yet";
+      if(els.nowSub) els.nowSub.textContent="Select a song to start";
       renderPlaylist();
     };
   }
@@ -279,67 +323,91 @@ async function init(){
   if(tracks.length){
     setCurrentByIndex(0,{autoplay:false});
   }
+
+  // ── WIRING FIX 1 ──────────────────────────────────────────────
+  // heroUploadBtn (topbar) and emptyUploadBtn (empty state CTA)
+  // both open the upload modal. fileInput stays hidden in the DOM.
+  const uploadModal = document.getElementById("uploadModal");
+
+  function openUploadModal(){
+    if(uploadModal){
+      uploadModal.removeAttribute("inert");
+      uploadModal.classList.add("show");
+    }
+  }
+
+  function closeUploadModal(){
+    if(uploadModal){
+      uploadModal.setAttribute("inert","");
+      uploadModal.classList.remove("show");
+    }
+  }
+
+  document.getElementById("heroUploadBtn")?.addEventListener("click", openUploadModal);
+  document.getElementById("emptyUploadBtn")?.addEventListener("click", openUploadModal);
+  document.getElementById("sidebarUploadBtn")?.addEventListener("click", openUploadModal);
+  document.getElementById("mobileUploadBtn")?.addEventListener("click", openUploadModal);
+  document.getElementById("fab")?.addEventListener("click", openUploadModal);
+  document.getElementById("uploadCloseBtn")?.addEventListener("click", closeUploadModal);
+  document.getElementById("uploadBackdrop")?.addEventListener("click", closeUploadModal);
+
+  // ── WIRING FIX 2 ──────────────────────────────────────────────
+  // Dropzone inside modal triggers fileInput
+  const dropzone = document.getElementById("dropzone");
+  if(dropzone && els.fileInput){
+    dropzone.addEventListener("click", ()=> els.fileInput.click());
+    dropzone.addEventListener("dragover", e=>{ e.preventDefault(); dropzone.classList.add("dragover"); });
+    dropzone.addEventListener("dragleave", ()=> dropzone.classList.remove("dragover"));
+    dropzone.addEventListener("drop", async e=>{
+      e.preventDefault();
+      dropzone.classList.remove("dragover");
+      await addFiles(e.dataTransfer.files);
+      closeUploadModal();
+    });
+  }
+
+  // ── WIRING FIX 3 ──────────────────────────────────────────────
+  // Settings modal
+  const settingsModal = document.getElementById("settingsModal");
+  document.getElementById("settingsNavBtn")?.addEventListener("click", ()=>{
+    if(settingsModal){
+      settingsModal.removeAttribute("inert");
+      settingsModal.classList.add("show");
+    }
+  });
+  document.getElementById("settingsCloseBtn")?.addEventListener("click", ()=>{
+    if(settingsModal){
+      settingsModal.setAttribute("inert","");
+      settingsModal.classList.remove("show");
+    }
+  });
+  document.getElementById("settingsBackdrop")?.addEventListener("click", ()=>{
+    if(settingsModal){
+      settingsModal.setAttribute("inert","");
+      settingsModal.classList.remove("show");
+    }
+  });
+
+  // Global drag-to-upload (outside modal)
+  const dragOverlay = document.getElementById("dragOverlay");
+  let dragCounter = 0;
+  document.addEventListener("dragenter", e=>{
+    if([...e.dataTransfer.types].includes("Files")){
+      dragCounter++;
+      dragOverlay?.classList.add("show");
+    }
+  });
+  document.addEventListener("dragleave", ()=>{
+    dragCounter--;
+    if(dragCounter<=0){ dragCounter=0; dragOverlay?.classList.remove("show"); }
+  });
+  document.addEventListener("dragover", e=> e.preventDefault());
+  document.addEventListener("drop", async e=>{
+    e.preventDefault();
+    dragCounter=0;
+    dragOverlay?.classList.remove("show");
+    await addFiles(e.dataTransfer.files);
+  });
 }
 
 init();
-
-/*
-music-cloud/
-├── frontend/
-│   ├── assets/
-│   │   ├── icons/
-│   │   └── images/
-│   ├── components/
-│   ├── css/
-│   │   └── style.css
-│   ├── js/
-│   │   ├── modules/
-│   │   │   ├── db.js
-│   │   │   ├── player.js
-│   │   │   ├── ui.js
-│   │   │   └── upload.js
-│   │   ├── utils/
-│   │   │   └── helpers.js
-│   │   └── main.js
-│   └── index.html
-├── backend/
-└── README.mdmusic-cloud/
-├── frontend/
-│   ├── assets/
-│   │   ├── icons/
-│   │   └── images/
-│   ├── components/
-│   ├── css/
-│   │   └── style.css
-│   ├── js/
-│   │   ├── modules/
-│   │   │   ├── db.js
-│   │   │   ├── player.js
-│   │   │   ├── ui.js
-│   │   │   └── upload.js
-│   │   ├── utils/
-│   │   │   └── helpers.js
-│   │   └── main.js
-│   └── index.html
-├── backend/
-└── README.mdmusic-cloud/
-├── frontend/
-│   ├── assets/
-│   │   ├── icons/
-│   │   └── images/
-│   ├── components/
-│   ├── css/
-│   │   └── style.css
-│   ├── js/
-│   │   ├── modules/
-│   │   │   ├── db.js
-│   │   │   ├── player.js
-│   │   │   ├── ui.js
-│   │   │   └── upload.js
-│   │   ├── utils/
-│   │   │   └── helpers.js
-│   │   └── main.js
-│   └── index.html
-├── backend/
-└── README.md
-*/

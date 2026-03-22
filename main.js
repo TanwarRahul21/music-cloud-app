@@ -73,7 +73,6 @@ const els = {
   storageQuota: document.getElementById('storageQuota'),
   storageQuotaFill: document.getElementById('storageQuotaFill'),
   storageQuotaText: document.getElementById('storageQuotaText'),
-  // Desktop elements
   dragOverlay: document.getElementById('dragOverlay'),
   heroUploadBtn: document.getElementById('heroUploadBtn'),
   nowPlayingTitle: document.getElementById('nowPlayingTitle'),
@@ -89,7 +88,7 @@ const els = {
 let user = null;
 let tracks = [];
 let filteredTracks = [];
-let playlists = []; // Playlists not implemented in this redesign
+let playlists = [];
 let currentIndex = -1;
 let isSeeking = false;
 let isExpandedSeeking = false;
@@ -138,7 +137,6 @@ function loadLibraryCollection() {
       libraryTrackIds = new Set();
       return;
     }
-
     const ids = JSON.parse(raw);
     libraryTrackIds = new Set(Array.isArray(ids) ? ids : []);
     hasSavedLibraryCollection = true;
@@ -173,16 +171,11 @@ function syncLibraryCollectionWithTracks() {
   }
 
   for (const id of [...libraryTrackIds]) {
-    if (!currentTrackIds.has(id)) {
-      libraryTrackIds.delete(id);
-    }
+    if (!currentTrackIds.has(id)) libraryTrackIds.delete(id);
   }
 
-  // New uploads should appear in Library by default.
   for (const id of currentTrackIds) {
-    if (!libraryTrackIds.has(id)) {
-      libraryTrackIds.add(id);
-    }
+    if (!libraryTrackIds.has(id)) libraryTrackIds.add(id);
   }
 
   saveLibraryCollection();
@@ -194,29 +187,18 @@ function isFavorite(trackId) {
 
 function toggleFavorite(trackId) {
   if (!trackId) return false;
-
-  if (favoriteTrackIds.has(trackId)) {
-    favoriteTrackIds.delete(trackId);
-  } else {
-    favoriteTrackIds.add(trackId);
-  }
-
+  if (favoriteTrackIds.has(trackId)) favoriteTrackIds.delete(trackId);
+  else favoriteTrackIds.add(trackId);
   saveFavorites();
   return favoriteTrackIds.has(trackId);
 }
 
 function setActiveNavigation(view) {
-  const navToDesktopView = {
-    home: 'home',
-    library: 'library',
-    favorites: 'favorites',
-  };
-
+  const navToDesktopView = { home: 'home', library: 'library', favorites: 'favorites' };
   const desktopActive = navToDesktopView[view] || 'home';
   els.desktopNavItems.forEach((item) => {
     item.classList.toggle('desktop-nav__item--active', item.dataset.nav === desktopActive);
   });
-
   const mobileActive = view === 'favorites' ? 'library' : (view === 'library' ? 'library' : 'home');
   els.bottomNavItems.forEach((item) => {
     item.classList.toggle('bottom-nav__item--active', item.dataset.nav === mobileActive);
@@ -232,16 +214,14 @@ function setView(view) {
 
 function updateStorageQuotaUi() {
   if (!els.storageQuotaFill || !els.storageQuotaText) return;
-
   const usedBytes = tracks.reduce((sum, track) => sum + (Number(track.size) || 0), 0);
   const usedPct = Math.min(100, (usedBytes / STORAGE_LIMIT_BYTES) * 100);
-
   els.storageQuotaFill.style.setProperty('--progress', `${usedPct.toFixed(2)}%`);
   els.storageQuotaText.textContent = `${formatBytes(usedBytes)} of ${formatBytes(STORAGE_LIMIT_BYTES)} used`;
 }
 
 async function init() {
-  initTheme(); // Initialize theme from localStorage
+  initTheme();
   player = new Player(els.audio);
   wireEvents();
   await initDb();
@@ -257,14 +237,12 @@ async function init() {
       await refreshLibrary();
       return;
     }
-
     if (event === 'SIGNED_OUT') {
       await handleAuthChange(null);
       stopPlayback();
       showAuthModal();
       return;
     }
-
     await handleAuthChange(sessionUser);
   });
 }
@@ -275,7 +253,6 @@ async function handleAuthChange(u) {
   if (els.settingsUserEmail) {
     els.settingsUserEmail.textContent = user ? user.email : 'Not logged in';
   }
-
   if (user) {
     loadFavorites();
     loadLibraryCollection();
@@ -318,13 +295,9 @@ async function refreshLibrary() {
     const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
     const cachedTrack = cacheMap.get(trackId);
     const artwork =
-      cachedTrack?.artwork_url ||
-      cachedTrack?.artworkUrl ||
-      cachedTrack?.thumbnail_url ||
-      cachedTrack?.thumbnailUrl ||
-      cachedTrack?.cover_url ||
-      cachedTrack?.coverUrl ||
-      null;
+      cachedTrack?.artwork_url || cachedTrack?.artworkUrl ||
+      cachedTrack?.thumbnail_url || cachedTrack?.thumbnailUrl ||
+      cachedTrack?.cover_url || cachedTrack?.coverUrl || null;
 
     return {
       id: trackId,
@@ -340,7 +313,6 @@ async function refreshLibrary() {
 
   syncLibraryCollectionWithTracks();
   updateStorageQuotaUi();
-
   applySearchFilter();
   renderPlaylist();
 
@@ -356,44 +328,32 @@ function applySearchFilter() {
     filteredTracks = tracks.filter((track) => isInLibrary(track.id));
     return;
   }
-
   if (currentView === 'favorites') {
     filteredTracks = tracks.filter((track) => isFavorite(track.id));
     return;
   }
-
   filteredTracks = tracks;
 }
 
 function resolveArtworkUrl(track) {
   const candidates = [
-    track?.artwork,
-    track?.artwork_url,
-    track?.artworkUrl,
-    track?.thumbnail,
-    track?.thumbnail_url,
-    track?.thumbnailUrl,
-    track?.cover,
-    track?.cover_url,
-    track?.coverUrl,
+    track?.artwork, track?.artwork_url, track?.artworkUrl,
+    track?.thumbnail, track?.thumbnail_url, track?.thumbnailUrl,
+    track?.cover, track?.cover_url, track?.coverUrl,
   ];
-
   return candidates.find((value) => typeof value === 'string' && value.trim()) || null;
 }
 
 function setArtwork(containerEl, imgEl, src, altText) {
   if (!containerEl || !imgEl) return;
-
   const hasArtwork = typeof src === 'string' && src.trim().length > 0;
   containerEl.classList.toggle('has-image', hasArtwork);
-
   if (hasArtwork) {
     imgEl.src = src;
     imgEl.alt = altText;
     imgEl.classList.remove('hidden');
     return;
   }
-
   imgEl.removeAttribute('src');
   imgEl.classList.add('hidden');
 }
@@ -409,23 +369,19 @@ function getTrackQualityLabel(track) {
 
 function syncExpandedPlaybackProgress() {
   if (!els.expandedSeek || !els.expandedTimeCurrent || !els.expandedTimeDuration) return;
-
   const duration = Number.isFinite(player.duration) ? player.duration : 0;
   const currentTime = Number.isFinite(player.currentTime) ? player.currentTime : 0;
   const pct = duration > 0 ? (currentTime / duration) * 100 : 0;
-
   if (!isExpandedSeeking) {
     els.expandedSeek.value = pct;
     els.expandedSeek.style.setProperty('--fill', `${pct}%`);
   }
-
   els.expandedTimeCurrent.textContent = formatTime(currentTime);
   els.expandedTimeDuration.textContent = formatTime(duration);
 }
 
 function syncExpandedPlayerData() {
   if (!els.expandedPlayer) return;
-
   const track = getCurrentTrack();
   if (!track) {
     if (els.expandedTitle) els.expandedTitle.textContent = 'Nothing yet';
@@ -440,15 +396,11 @@ function syncExpandedPlayerData() {
     if (els.expandedTimeDuration) els.expandedTimeDuration.textContent = '0:00';
     return;
   }
-
   if (els.expandedTitle) els.expandedTitle.textContent = track.name;
   if (els.expandedMeta) {
     els.expandedMeta.textContent = `${track.duration ? formatTime(track.duration) : '--:--'} • ${formatBytes(track.size)}`;
   }
-  if (els.expandedQuality) {
-    els.expandedQuality.textContent = getTrackQualityLabel(track);
-  }
-
+  if (els.expandedQuality) els.expandedQuality.textContent = getTrackQualityLabel(track);
   setArtwork(els.expandedArt, els.expandedArtImg, resolveArtworkUrl(track), `${track.name} cover art`);
   syncExpandedPlaybackProgress();
 }
@@ -481,10 +433,7 @@ function selectTrack(index, { autoplay }) {
   els.nowTitle.textContent = track.name;
   els.nowSub.textContent = `${track.duration ? formatTime(track.duration) : '--:--'} • ${formatBytes(track.size)}`;
 
-  // Update desktop "Now Playing" sidebar
-  if (els.nowPlayingTitle) {
-    els.nowPlayingTitle.textContent = track.name;
-  }
+  if (els.nowPlayingTitle) els.nowPlayingTitle.textContent = track.name;
   if (els.nowPlayingArtist) {
     els.nowPlayingArtist.textContent = `${formatBytes(track.size)} • ${track.duration ? formatTime(track.duration) : '--:--'}`;
   }
@@ -494,19 +443,13 @@ function selectTrack(index, { autoplay }) {
   setArtwork(els.nowPlayingArt, els.nowPlayingImg, artworkUrl, `${track.name} cover art`);
   setArtwork(els.expandedArt, els.expandedArtImg, artworkUrl, `${track.name} cover art`);
 
-  if (els.expandedTitle) {
-    els.expandedTitle.textContent = track.name;
-  }
+  if (els.expandedTitle) els.expandedTitle.textContent = track.name;
   if (els.expandedMeta) {
     els.expandedMeta.textContent = `${track.duration ? formatTime(track.duration) : '--:--'} • ${formatBytes(track.size)}`;
   }
-  if (els.expandedQuality) {
-    els.expandedQuality.textContent = getTrackQualityLabel(track);
-  }
+  if (els.expandedQuality) els.expandedQuality.textContent = getTrackQualityLabel(track);
 
-  // Apply dynamic color theming based on current track
   applyDynamicColor(currentIndex);
-
   highlightActiveRow();
 
   if (autoplay) {
@@ -547,18 +490,13 @@ function playPause() {
 
 function nextTrack() {
   if (!filteredTracks.length) return;
-
   if (isShuffleEnabled && filteredTracks.length > 1) {
     const currentTrackId = tracks[currentIndex]?.id;
     const candidates = filteredTracks.filter((track) => track.id !== currentTrackId);
     const randomTrack = candidates[Math.floor(Math.random() * candidates.length)];
     const randomIndex = filteredTracks.findIndex((track) => track.id === randomTrack?.id);
-    if (randomIndex >= 0) {
-      selectTrack(randomIndex, { autoplay: true });
-      return;
-    }
+    if (randomIndex >= 0) { selectTrack(randomIndex, { autoplay: true }); return; }
   }
-
   const currentFilteredIndex = filteredTracks.findIndex(t => t.id === tracks[currentIndex]?.id);
   const idx = currentFilteredIndex >= filteredTracks.length - 1 ? 0 : currentFilteredIndex + 1;
   selectTrack(idx, { autoplay: true });
@@ -574,23 +512,11 @@ function prevTrack() {
 function updatePlayBtn() {
   const icon = player.paused ? "▶" : "⏸";
   els.playBtn.textContent = icon;
-
-  // Update desktop play button
-  if (els.playBtnDesktop) {
-    els.playBtnDesktop.textContent = icon;
-  }
-
-  if (els.expandedPlayBtn) {
-    els.expandedPlayBtn.textContent = icon;
-  }
-
-  // Update audio visualizer visibility
-  if (els.audioVisualizer) {
-    els.audioVisualizer.classList.toggle('playing', !player.paused);
-  }
+  if (els.playBtnDesktop) els.playBtnDesktop.textContent = icon;
+  if (els.expandedPlayBtn) els.expandedPlayBtn.textContent = icon;
+  if (els.audioVisualizer) els.audioVisualizer.classList.toggle('playing', !player.paused);
 }
 
-// ─── Theme Management ─── //
 function initTheme() {
   const savedTheme = localStorage.getItem('music-cloud-theme') || 'dark';
   document.body.className = `theme-${savedTheme}`;
@@ -635,34 +561,28 @@ function updateThemeColors(theme) {
   }
 }
 
-// ─── Dynamic Color Theming ─── //
 const COLOR_PALETTES = [
-  { primary: '#7c73ff', secondary: '#ff7eb3' }, // Purple-Pink
-  { primary: '#00d95f', secondary: '#00f5a0' }, // Green
-  { primary: '#ff6b6b', secondary: '#ffd93d' }, // Red-Yellow
-  { primary: '#4ecdc4', secondary: '#44a3ff' }, // Teal-Blue
-  { primary: '#ff9f43', secondary: '#ee5a6f' }, // Orange-Red
-  { primary: '#a29bfe', secondary: '#fd79a8' }, // Lavender-Pink
+  { primary: '#7c73ff', secondary: '#ff7eb3' },
+  { primary: '#00d95f', secondary: '#00f5a0' },
+  { primary: '#ff6b6b', secondary: '#ffd93d' },
+  { primary: '#4ecdc4', secondary: '#44a3ff' },
+  { primary: '#ff9f43', secondary: '#ee5a6f' },
+  { primary: '#a29bfe', secondary: '#fd79a8' },
 ];
 
 let currentColorIndex = 0;
 
 function applyDynamicColor(trackIndex) {
-  // Cycle through color palettes based on track index
   currentColorIndex = trackIndex % COLOR_PALETTES.length;
   const palette = COLOR_PALETTES[currentColorIndex];
-
   const root = document.documentElement;
   root.style.setProperty('--dynamic-accent', palette.primary);
   root.style.setProperty('--dynamic-accent-2', palette.secondary);
-  root.style.setProperty('--dynamic-color-1', `${palette.primary}33`); // 20% opacity
-
-  // Smoothly transition accent colors
+  root.style.setProperty('--dynamic-color-1', `${palette.primary}33`);
   root.style.setProperty('--accent', palette.primary);
   root.style.setProperty('--accent-2', palette.secondary);
 }
 
-// ─── Settings Modal ─── //
 function showSettingsModal() {
   els.settingsModal.removeAttribute('inert');
   els.settingsModal.classList.add('show');
@@ -702,7 +622,6 @@ function renderPlaylist() {
     row.className = 'row';
     row.dataset.id = track.id;
 
-    // Determine quality based on size (rough estimation)
     const qualityBadge = track.size > 10000000 ? 'Lossless' : '320kbps';
     const durText = track.duration == null ? "--:--" : formatTime(track.duration);
 
@@ -745,20 +664,17 @@ function renderPlaylist() {
         await removeTrack(track);
         return;
       }
-
       if (action === 'like') {
         e.stopPropagation();
         const nowFavorite = toggleFavorite(track.id);
         row.querySelector('[data-action="like"]').textContent = nowFavorite ? 'Liked' : 'Like';
         toast(nowFavorite ? 'Added to favorites' : 'Removed from favorites');
-
         if (currentView === 'favorites' && !nowFavorite) {
           applySearchFilter();
           renderPlaylist();
         }
         return;
       }
-
       if (action === 'library') {
         e.stopPropagation();
         const added = addToLibrary(track.id);
@@ -827,18 +743,26 @@ function hideUploadUiStateLater() {
   }, 2000);
 }
 
+// ─── PATCHED: handleUpload ────────────────────────────────────────
+// BEFORE: serial for loop — waited for each upload to finish
+//         before starting the next one
+//
+// AFTER:  uploadPool(3) — uploads 3 files at the same time.
+//         When one finishes, the next starts immediately.
+//         10 files now take ~⅓ of the original time.
+// ─────────────────────────────────────────────────────────────────
 async function handleUpload(files) {
   if (!user) { toast('Login to upload'); showAuthModal(); return; }
   if (!files || !files.length) return;
 
-  // Reset upload state first
   isUploading = false;
   els.uploadFeedback?.classList.add('hidden');
-
   setUploadUiState(true, 'Preparing upload...', 0);
 
   try {
+    // processFiles now reads all durations in parallel too (see upload.js)
     const parsed = await processFiles(files);
+
     if (!parsed.length) {
       setUploadUiState(false, 'No valid audio files found', 0);
       hideUploadUiStateLater();
@@ -846,34 +770,91 @@ async function handleUpload(files) {
       return;
     }
 
-    let uploaded = 0;
+    const total = parsed.length;
+    let completed = 0;
+    let failed = 0;
 
-    for (const t of parsed) {
-      setUploadUiState(true, `Uploading... (${uploaded + 1}/${parsed.length})`, (uploaded / parsed.length) * 100);
-      const path = `${user.id}/${t.id}__${t.storageName}`; // Use sanitized filename
-      const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, t.blob, { cacheControl: '3600', upsert: false });
-      if (upErr) {
-        console.error('Upload error for file:', t.name, upErr);
-        throw new Error(`Failed to upload ${t.name}: ${upErr.message}`);
-      }
-      const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
-      const record = { id: t.id, name: t.name, size: t.size, duration: t.duration, addedAt: t.addedAt, url: pub.publicUrl, path, user_id: user.id };
-      await saveDbTrack(record);
-      uploaded += 1;
-      setUploadUiState(true, `Uploaded ${uploaded}/${parsed.length}`, (uploaded / parsed.length) * 100);
+    function onFileDone(succeeded) {
+      completed++;
+      if (!succeeded) failed++;
+      const pct = Math.round((completed / total) * 100);
+      setUploadUiState(
+        true,
+        `Uploaded ${completed - failed}/${total}${failed ? ` · ${failed} failed` : ''}`,
+        pct
+      );
     }
 
-    setUploadUiState(false, `Upload complete!`, 100);
+    // Upload 3 files at a time instead of 1 at a time
+    await uploadPool(parsed, 3, async (t) => {
+      try {
+        await uploadOneFile(t);
+        onFileDone(true);
+      } catch (err) {
+        console.error(`Failed to upload "${t.name}":`, err.message);
+        toast(`Failed: ${t.name}`);
+        onFileDone(false);
+      }
+    });
+
+    const uploaded = completed - failed;
+    setUploadUiState(false, `Upload complete! ${uploaded} song${uploaded !== 1 ? 's' : ''} added`, 100);
     hideUploadUiStateLater();
-    toast(`Added ${uploaded} song(s)`);
+    toast(`Added ${uploaded} song${uploaded !== 1 ? 's' : ''}`);
     await refreshLibrary();
     setTimeout(hideUploadModal, 1200);
+
   } catch (err) {
     console.error('Upload error', err);
     setUploadUiState(false, 'Upload failed', 0);
     hideUploadUiStateLater();
     toast(err.message || 'Upload failed. Check console for details.');
   }
+}
+
+// ─── NEW: uploadPool ──────────────────────────────────────────────
+// Runs at most `limit` tasks at the same time.
+// Think of it as a queue with `limit` workers pulling from it.
+// ─────────────────────────────────────────────────────────────────
+async function uploadPool(items, limit, task) {
+  const queue = [...items];
+  async function worker() {
+    while (queue.length > 0) {
+      const item = queue.shift();
+      if (item) await task(item);
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, () => worker())
+  );
+}
+
+// ─── NEW: uploadOneFile ───────────────────────────────────────────
+// Uploads one track to Supabase Storage then saves to DB.
+// Same logic as the old for-loop body, just extracted so it
+// can run concurrently inside uploadPool.
+// ─────────────────────────────────────────────────────────────────
+async function uploadOneFile(t) {
+  const path = `${user.id}/${t.id}__${t.storageName}`;
+
+  const { error: upErr } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, t.blob, { cacheControl: '3600', upsert: false });
+
+  if (upErr) throw new Error(`Failed to upload ${t.name}: ${upErr.message}`);
+
+  const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
+
+  await saveDbTrack({
+    id:       t.id,
+    name:     t.name,
+    size:     t.size,
+    duration: t.duration,
+    addedAt:  t.addedAt,
+    url:      pub.publicUrl,
+    path,
+    user_id:  user.id,
+  });
 }
 
 function wireEvents() {
@@ -884,14 +865,12 @@ function wireEvents() {
     }
   });
 
-  // Better dropzone click handling
   els.dropzone.addEventListener("click", (e) => {
     e.stopPropagation();
     if (isUploading) return;
     els.fileInput.click();
   });
 
-  // Keyboard support for dropzone
   els.dropzone.addEventListener("keydown", (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
@@ -916,17 +895,11 @@ function wireEvents() {
     e.stopPropagation();
     els.dropzone.classList.remove("dragover");
     if (isUploading) return;
-    if (e.dataTransfer.files.length > 0) {
-      handleUpload(e.dataTransfer.files);
-    }
+    if (e.dataTransfer.files.length > 0) handleUpload(e.dataTransfer.files);
   });
 
-  // Make upload button label work better
   els.uploadBtnLabel.addEventListener("click", (e) => {
-    if (isUploading) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+    if (isUploading) { e.preventDefault(); e.stopPropagation(); }
   });
 
   els.playBtn.addEventListener("click", playPause);
@@ -951,11 +924,10 @@ function wireEvents() {
       closeExpandedPlayer();
     }
   });
+
   if (els.playBtnMobile) els.playBtnMobile.addEventListener("click", playPause);
   if (els.prevBtnMobile) els.prevBtnMobile.addEventListener("click", prevTrack);
   if (els.nextBtnMobile) els.nextBtnMobile.addEventListener("click", nextTrack);
-
-  // Desktop controls
   if (els.playBtnDesktop) els.playBtnDesktop.addEventListener("click", playPause);
   if (els.prevBtnDesktop) els.prevBtnDesktop.addEventListener("click", prevTrack);
   if (els.nextBtnDesktop) els.nextBtnDesktop.addEventListener("click", nextTrack);
@@ -976,37 +948,23 @@ function wireEvents() {
 
   if (els.heroUploadBtn) els.heroUploadBtn.addEventListener("click", showUploadModal);
 
-  // Global drag and drop
   let dragCounter = 0;
-
   document.addEventListener('dragenter', (e) => {
     e.preventDefault();
     dragCounter++;
-    if (dragCounter === 1) {
-      els.dragOverlay?.classList.add('show');
-    }
+    if (dragCounter === 1) els.dragOverlay?.classList.add('show');
   });
-
   document.addEventListener('dragleave', (e) => {
     e.preventDefault();
     dragCounter--;
-    if (dragCounter === 0) {
-      els.dragOverlay?.classList.remove('show');
-    }
+    if (dragCounter === 0) els.dragOverlay?.classList.remove('show');
   });
-
-  document.addEventListener('dragover', (e) => {
-    e.preventDefault();
-  });
-
+  document.addEventListener('dragover', (e) => { e.preventDefault(); });
   document.addEventListener('drop', (e) => {
     e.preventDefault();
     dragCounter = 0;
     els.dragOverlay?.classList.remove('show');
-
-    if (e.dataTransfer.files.length > 0) {
-      handleUpload(e.dataTransfer.files);
-    }
+    if (e.dataTransfer.files.length > 0) handleUpload(e.dataTransfer.files);
   });
 
   els.volume.addEventListener("input", () => {
@@ -1016,11 +974,9 @@ function wireEvents() {
   els.playerArtImg?.addEventListener('error', () => {
     setArtwork(els.playerArt, els.playerArtImg, null, 'Current track cover art');
   });
-
   els.nowPlayingImg?.addEventListener('error', () => {
     setArtwork(els.nowPlayingArt, els.nowPlayingImg, null, 'Now playing cover art');
   });
-
   els.expandedArtImg?.addEventListener('error', () => {
     setArtwork(els.expandedArt, els.expandedArtImg, null, 'Expanded player cover art');
   });
@@ -1030,9 +986,7 @@ function wireEvents() {
   els.seek.addEventListener("input", () => {
     if (!isSeeking) return;
     const pct = els.seek.value / 100;
-    if (player.duration > 0) {
-      els.timeCurrent.textContent = formatTime(pct * player.duration);
-    }
+    if (player.duration > 0) els.timeCurrent.textContent = formatTime(pct * player.duration);
   });
   els.seek.addEventListener("change", () => { player.seek(els.seek.value); });
 
@@ -1042,8 +996,7 @@ function wireEvents() {
     if (!isExpandedSeeking) return;
     const pct = Number(els.expandedSeek.value) / 100;
     if (player.duration > 0) {
-      const current = pct * player.duration;
-      els.expandedTimeCurrent.textContent = formatTime(current);
+      els.expandedTimeCurrent.textContent = formatTime(pct * player.duration);
       els.expandedSeek.style.setProperty('--fill', `${pct * 100}%`);
     }
   });
@@ -1054,18 +1007,16 @@ function wireEvents() {
 
   els.audio.addEventListener("loadedmetadata", async () => {
     els.timeDuration.textContent = formatTime(player.duration);
-    if (els.expandedTimeDuration) {
-      els.expandedTimeDuration.textContent = formatTime(player.duration);
-    }
+    if (els.expandedTimeDuration) els.expandedTimeDuration.textContent = formatTime(player.duration);
     const track = tracks[currentIndex];
     if (track && track.duration == null && Number.isFinite(player.duration)) {
-       track.duration = player.duration;
-       await saveDbTrack(track);
-       renderPlaylist();
+      track.duration = player.duration;
+      await saveDbTrack(track);
+      renderPlaylist();
     }
     syncExpandedPlayerData();
   });
-  
+
   els.audio.addEventListener("timeupdate", () => {
     if (isSeeking) return;
     let pct = 0;
@@ -1087,7 +1038,6 @@ function wireEvents() {
     nextTrack();
   });
 
-  // Modal wiring
   els.authCloseBtn.addEventListener('click', hideAuthModal);
   els.authBackdrop.addEventListener('click', hideAuthModal);
   els.fab.addEventListener('click', showUploadModal);
@@ -1103,20 +1053,10 @@ function wireEvents() {
   els.desktopNav?.addEventListener('click', (event) => {
     const item = event.target.closest('.desktop-nav__item');
     if (!item) return;
-
     event.preventDefault();
     const nav = item.dataset.nav;
-
-    if (nav === 'upload') {
-      showUploadModal();
-      return;
-    }
-
-    if (nav === 'favorites') {
-      setView('favorites');
-      return;
-    }
-
+    if (nav === 'upload') { showUploadModal(); return; }
+    if (nav === 'favorites') { setView('favorites'); return; }
     setView(nav === 'library' ? 'library' : 'home');
     document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
   });
@@ -1128,9 +1068,7 @@ function wireEvents() {
         setView('home');
         document.querySelector('.main-content')?.scrollTo({ top: 0, behavior: 'smooth' });
       }
-      if (nav === 'library') {
-        setView('library');
-      }
+      if (nav === 'library') setView('library');
     });
   });
 
@@ -1139,7 +1077,6 @@ function wireEvents() {
     const freeBytes = Math.max(0, STORAGE_LIMIT_BYTES - usedBytes);
     toast(`Storage: ${formatBytes(usedBytes)} used, ${formatBytes(freeBytes)} free`);
   };
-
   els.storageQuota?.addEventListener('click', openStorageSummary);
   els.storageQuota?.addEventListener('keydown', (event) => {
     if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -1158,7 +1095,6 @@ function hideAuthModal() {
   setTimeout(() => els.authModal.setAttribute('inert', ''), 300);
 }
 function showUploadModal() {
-  // Reset upload state when opening modal
   isUploading = false;
   els.uploadFeedback?.classList.add('hidden');
   if (els.uploadProgressFill) els.uploadProgressFill.style.width = '0%';
@@ -1166,7 +1102,6 @@ function showUploadModal() {
   els.dropzone.classList.remove('dropzone--disabled');
   els.uploadBtnLabel?.classList.remove('btn--disabled');
   els.uploadBtnLabel?.setAttribute('aria-disabled', 'false');
-
   els.uploadModal.removeAttribute('inert');
   els.uploadModal.classList.add('show');
   setTimeout(() => els.dropzone.focus(), 300);
@@ -1187,7 +1122,6 @@ async function handleLogin(event) {
   const email = (els.authEmail.value || '').trim();
   const password = els.authPassword.value || '';
   if (!email || !password) return toast('Email and password are required.');
-
   setAuthButtonsLoading(true);
   try {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -1203,7 +1137,6 @@ async function handleSignup(event) {
   const email = (els.authEmail.value || '').trim();
   const password = els.authPassword.value || '';
   if (!email || !password) return toast('Email and password are required.');
-
   setAuthButtonsLoading(true);
   try {
     const { data, error } = await supabase.auth.signUp({ email, password });
@@ -1240,7 +1173,6 @@ async function handleGoogleLogin(event) {
   }
 }
 
-// Auth event listeners
 els.loginBtn.addEventListener('click', handleLogin);
 els.signupBtn.addEventListener('click', handleSignup);
 els.googleLoginBtn.addEventListener('click', handleGoogleLogin);

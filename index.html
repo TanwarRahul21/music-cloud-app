@@ -7,17 +7,17 @@
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='32' fill='%238b5cf6'/%3E%3Cpath d='M24 40V18l22-4v22' stroke='white' stroke-width='4' fill='none'/%3E%3Ccircle cx='20' cy='42' r='6' fill='white'/%3E%3Ccircle cx='42' cy='38' r='6' fill='white'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body class="theme-dark">
 <div class="app-shell">
 
-  <!-- ─── Left Sidebar ─── -->
-  <aside class="desktop-sidebar desktop-sidebar--left">
+  <!-- ═══ LEFT SIDEBAR ═══ -->
+  <aside class="desktop-sidebar desktop-sidebar--left" id="sidebar">
     <div class="sidebar-header">
       <div class="logo">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
           <path d="M9 18V5l12-2v13"></path>
           <circle cx="6" cy="18" r="3"></circle>
           <circle cx="18" cy="16" r="3"></circle>
@@ -28,28 +28,29 @@
 
     <nav class="desktop-nav" id="desktopNav">
       <a href="#" class="desktop-nav__item desktop-nav__item--active" data-nav="home">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
           <polyline points="9 22 9 12 15 12 15 22"></polyline>
         </svg>
         <span>Home</span>
       </a>
       <a href="#" class="desktop-nav__item" data-nav="library">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M9 18V5l12-2v13"></path>
           <circle cx="6" cy="18" r="3"></circle>
           <circle cx="18" cy="16" r="3"></circle>
         </svg>
         <span>Library</span>
       </a>
-      <a href="#" class="desktop-nav__item" data-nav="favorites">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <a href="#" class="desktop-nav__item" data-nav="favorites" id="navFavorites">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
         </svg>
         <span>Favorites</span>
+        <span class="nav-badge" id="favBadge" style="display:none">0</span>
       </a>
       <a href="#" class="desktop-nav__item" data-nav="upload" id="sidebarUploadBtn">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
           <polyline points="17 8 12 3 7 8"></polyline>
           <line x1="12" y1="3" x2="12" y2="15"></line>
@@ -58,128 +59,189 @@
       </a>
     </nav>
 
-    <div class="storage-quota" id="storageQuota" role="button" tabindex="0" aria-label="View storage usage">
-      <div class="storage-quota__title">Storage</div>
-      <div class="storage-quota__bar">
-        <div class="storage-quota__fill" id="storageQuotaFill" style="--progress: 0%"></div>
+    <div class="sidebar-section" id="recentSection" style="display:none">
+      <div class="sidebar-section__label">Recently played</div>
+      <div id="recentList" class="recent-list"></div>
+    </div>
+
+    <div class="storage-quota" id="storageQuota" role="button" tabindex="0" aria-label="Storage usage">
+      <div class="storage-quota__header">
+        <span class="storage-quota__title">Storage</span>
+        <span class="storage-quota__text" id="storageQuotaText">0 MB used</span>
       </div>
-      <div class="storage-quota__text" id="storageQuotaText">0 B of 4 GB used</div>
+      <div class="storage-quota__bar">
+        <div class="storage-quota__fill" id="storageQuotaFill" style="--progress:0%"></div>
+      </div>
     </div>
   </aside>
 
-  <!-- ─── Main Content ─── -->
+  <!-- ═══ MAIN CONTENT ═══ -->
   <main class="main-content">
 
     <!-- Topbar -->
     <div class="topbar">
       <div class="topbar__left">
         <button class="iconbtn mobile-menu-btn" id="mobileMenuBtn" aria-label="Menu">
-          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none">
+          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
             <line x1="3" y1="6" x2="21" y2="6"></line>
             <line x1="3" y1="12" x2="21" y2="12"></line>
             <line x1="3" y1="18" x2="21" y2="18"></line>
           </svg>
         </button>
-        <div class="logo logo--mobile">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9 18V5l12-2v13"></path>
-            <circle cx="6" cy="18" r="3"></circle>
-            <circle cx="18" cy="16" r="3"></circle>
+        <div class="search-bar">
+          <svg class="search-bar__icon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
-          <span class="logo-text">Music Cloud</span>
+          <input id="searchInput" class="search-bar__input" type="text" placeholder="Search your library…" autocomplete="off" spellcheck="false">
+          <button class="search-bar__clear hidden" id="searchClear" aria-label="Clear">
+            <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2.5" fill="none">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
         </div>
       </div>
       <div class="topbar__right">
         <button class="btn btn--upload-top" id="heroUploadBtn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="17 8 12 3 7 8"></polyline>
             <line x1="12" y1="3" x2="12" y2="15"></line>
           </svg>
           Upload
         </button>
-        <div class="topbar__avatar">MC</div>
+        <div class="topbar__avatar" id="topbarAvatar">MC</div>
       </div>
     </div>
 
-    <!-- Library Section -->
+    <!-- Library section -->
     <div class="library-section">
       <div class="library-header">
         <div class="library-header__left">
-          <h1 class="library-header__title">Library</h1>
+          <h1 class="library-header__title" id="libraryViewTitle">Library</h1>
           <div class="library-header__meta" id="libraryMeta">0 songs</div>
         </div>
-        <button class="btn btn--ghost btn--sm" id="clearAllBtn">Clear all</button>
+        <div class="library-header__right">
+          <div class="sort-control">
+            <svg viewBox="0 0 24 24" width="12" height="12" stroke="currentColor" stroke-width="2" fill="none">
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="6" y1="12" x2="18" y2="12"></line>
+              <line x1="9" y1="18" x2="15" y2="18"></line>
+            </svg>
+            <select id="sortSelect" class="sort-select" aria-label="Sort tracks">
+              <option value="addedAt-asc">Date added</option>
+              <option value="addedAt-desc">Newest first</option>
+              <option value="name-asc">A → Z</option>
+              <option value="name-desc">Z → A</option>
+              <option value="duration-asc">Shortest</option>
+              <option value="duration-desc">Longest</option>
+            </select>
+          </div>
+          <button class="btn btn--ghost btn--sm" id="clearAllBtn">Clear all</button>
+        </div>
       </div>
 
-      <!-- Track List — ID must stay "trackList" for JS -->
+      <!-- Column headers (hidden when empty) -->
+      <div class="track-cols-header hidden" id="trackColsHeader">
+        <span class="tcol tcol--num">#</span>
+        <span class="tcol tcol--title">Title</span>
+        <span class="tcol tcol--fav"></span>
+        <span class="tcol tcol--dur">
+          <svg viewBox="0 0 24 24" width="11" height="11" stroke="currentColor" stroke-width="2" fill="none">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+        </span>
+      </div>
+
+      <!-- id="trackList" REQUIRED by JS -->
       <div class="list" id="trackList" role="list"></div>
 
-      <!-- Empty state (shown via CSS when list is empty) -->
+      <!-- Empty state -->
       <div class="empty-state" id="emptyState">
-        <div class="empty-state__icon">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M9 18V5l12-2v13"></path>
-            <circle cx="6" cy="18" r="3"></circle>
-            <circle cx="18" cy="16" r="3"></circle>
+        <div class="empty-state__visual">
+          <div class="empty-state__ring"></div>
+          <div class="empty-state__icon">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M9 18V5l12-2v13"></path>
+              <circle cx="6" cy="18" r="3"></circle>
+              <circle cx="18" cy="16" r="3"></circle>
+            </svg>
+          </div>
+        </div>
+        <div class="empty-state__title">Your library is empty</div>
+        <div class="empty-state__sub">Upload MP3, WAV, FLAC, AAC or any audio file.<br>Everything is stored locally — no account needed.</div>
+        <div class="empty-state__actions">
+          <button class="btn btn--primary" id="emptyUploadBtn">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            Upload Music
+          </button>
+          <span class="empty-state__hint">or drag &amp; drop files anywhere</span>
+        </div>
+      </div>
+
+      <!-- No search results -->
+      <div class="empty-state hidden" id="noResultsState">
+        <div class="empty-state__icon-sm">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
           </svg>
         </div>
-        <div class="empty-state__title">No tracks yet</div>
-        <div class="empty-state__sub">Upload audio files to build your library</div>
-        <button class="btn btn--primary empty-state__cta" id="emptyUploadBtn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="17 8 12 3 7 8"></polyline>
-            <line x1="12" y1="3" x2="12" y2="15"></line>
-          </svg>
-          Upload Music
-        </button>
+        <div class="empty-state__title">No results found</div>
+        <div class="empty-state__sub" id="noResultsText">Try a different search term</div>
       </div>
     </div>
   </main>
 
-  <!-- ─── Global Drag Overlay ─── -->
+  <!-- Drag overlay -->
   <div class="drag-overlay" id="dragOverlay">
     <div class="drag-overlay__content">
       <div class="drag-overlay__icon">
-        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
           <polyline points="17 8 12 3 7 8"></polyline>
           <line x1="12" y1="3" x2="12" y2="15"></line>
         </svg>
       </div>
-      <div class="drag-overlay__title">Drop to Upload</div>
-      <div class="drag-overlay__subtitle">Release files to add them to your library</div>
+      <div class="drag-overlay__title">Drop to upload</div>
+      <div class="drag-overlay__subtitle">Audio files only</div>
     </div>
   </div>
 
-  <!-- ─── Bottom Player ─── -->
-  <!-- ALL IDs below are required by main.js — DO NOT RENAME -->
+  <!-- ═══ BOTTOM PLAYER — all IDs required by JS ═══ -->
   <div class="bottom-player" id="bottomPlayer">
-
-    <!-- Left: Now playing info -->
     <div class="bottom-player__track">
       <div class="player__art" id="playerArt">
-        <img class="player__art-img hidden" id="playerArtImg" src="" alt="Track cover">
-        <svg class="player__art-fallback" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <img class="player__art-img hidden" id="playerArtImg" src="" alt="">
+        <svg class="player__art-fallback" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M9 18V5l12-2v13"></path>
           <circle cx="6" cy="18" r="3"></circle>
           <circle cx="18" cy="16" r="3"></circle>
         </svg>
       </div>
       <div class="player__now">
-        <!-- id="nowTitle" and id="nowSub" required by JS -->
         <div class="player__title" id="nowTitle">Nothing yet</div>
         <div class="player__sub" id="nowSub">Select a song to start</div>
       </div>
+      <button class="iconbtn player__fav-btn" id="playerFavBtn" title="Favorite" aria-label="Toggle favorite">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+        </svg>
+      </button>
       <div class="audio-visualizer" id="audioVisualizer">
         <div class="audio-visualizer__bar"></div>
         <div class="audio-visualizer__bar"></div>
         <div class="audio-visualizer__bar"></div>
         <div class="audio-visualizer__bar"></div>
       </div>
-      <button class="iconbtn bottom-player__expand" id="expandPlayerBtn" type="button" aria-label="Expand player">
-        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
+      <button class="iconbtn bottom-player__expand" id="expandPlayerBtn" type="button" aria-label="Expand">
+        <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
           <polyline points="15 3 21 3 21 9"></polyline>
           <polyline points="9 21 3 21 3 15"></polyline>
           <line x1="21" y1="3" x2="14" y2="10"></line>
@@ -188,85 +250,10 @@
       </button>
     </div>
 
-    <!-- Center: Controls + progress -->
     <div class="bottom-player__center">
       <div class="bottom-player__controls">
-        <!-- id="prevBtn" required by JS -->
-        <button class="iconbtn" id="prevBtn" type="button" aria-label="Previous">
-          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
-            <polygon points="19 20 9 12 19 4 19 20"></polygon>
-            <line x1="5" y1="19" x2="5" y2="5"></line>
-          </svg>
-        </button>
-        <!-- id="playBtn" required by JS -->
-        <button class="playbtn" id="playBtn" type="button" aria-label="Play/Pause">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-          </svg>
-        </button>
-        <!-- id="nextBtn" required by JS -->
-        <button class="iconbtn" id="nextBtn" type="button" aria-label="Next">
-          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
-            <polygon points="5 4 15 12 5 20 5 4"></polygon>
-            <line x1="19" y1="5" x2="19" y2="19"></line>
-          </svg>
-        </button>
-      </div>
-
-      <div class="bottom-player__progress">
-        <div class="time" id="timeCurrent">0:00</div>
-        <!-- id="seek" required by JS -->
-        <input id="seek" class="range" type="range" min="0" max="100" value="0" step="0.1" aria-label="Seek">
-        <div class="time" id="timeDuration">0:00</div>
-      </div>
-    </div>
-
-    <!-- Right: Volume -->
-    <div class="bottom-player__right">
-      <div class="vol">
-        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none">
-          <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-          <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-        </svg>
-        <!-- id="volume" required by JS -->
-        <input id="volume" class="range" type="range" min="0" max="1" value="1" step="0.01" style="width:72px" aria-label="Volume">
-      </div>
-    </div>
-  </div>
-
-  <!-- ─── Expanded Player (modal-style) ─── -->
-  <div id="expandedPlayer" class="expanded-player" aria-hidden="true" inert>
-    <div class="expanded-player__content">
-      <div class="expanded-player__topbar">
-        <button class="iconbtn expanded-player__minimize" id="minimizePlayerBtn" type="button" aria-label="Minimize">
-          <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2.2" fill="none">
-            <polyline points="6 9 12 15 18 9"></polyline>
-          </svg>
-        </button>
-      </div>
-      <div class="expanded-player__art" id="expandedArt">
-        <img class="expanded-player__art-img hidden" id="expandedArtImg" src="" alt="Cover art">
-        <svg class="expanded-player__art-fallback" width="72" height="72" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path d="M9 18V5l12-2v13"></path>
-          <circle cx="6" cy="18" r="3"></circle>
-          <circle cx="18" cy="16" r="3"></circle>
-        </svg>
-      </div>
-      <div class="expanded-player__info">
-        <h2 class="expanded-player__title" id="expandedTitle">Nothing yet</h2>
-        <div class="expanded-player__meta-row">
-          <p class="expanded-player__meta" id="expandedMeta">Select a song to start</p>
-          <span class="quality-badge" id="expandedQuality">320kbps</span>
-        </div>
-      </div>
-      <div class="expanded-player__progress">
-        <div class="time" id="expandedTimeCurrent">0:00</div>
-        <input id="expandedSeek" class="range expanded-player__seek" type="range" min="0" max="100" value="0" step="0.1" aria-label="Seek">
-        <div class="time" id="expandedTimeDuration">0:00</div>
-      </div>
-      <div class="expanded-player__controls">
-        <button class="iconbtn expanded-control" id="expandedShuffleBtn" type="button" aria-label="Shuffle">
-          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+        <button class="iconbtn ctrl-extra" id="shuffleBtn" type="button" aria-label="Shuffle" title="Shuffle">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
             <polyline points="16 3 21 3 21 8"></polyline>
             <line x1="4" y1="20" x2="21" y2="3"></line>
             <polyline points="21 16 21 21 16 21"></polyline>
@@ -274,25 +261,25 @@
             <line x1="4" y1="4" x2="9" y2="9"></line>
           </svg>
         </button>
-        <button class="iconbtn expanded-control" id="expandedPrevBtn" type="button" aria-label="Previous">
-          <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none">
+        <button class="iconbtn" id="prevBtn" type="button" aria-label="Previous">
+          <svg viewBox="0 0 24 24" width="17" height="17" stroke="currentColor" stroke-width="2" fill="none">
             <polygon points="19 20 9 12 19 4 19 20"></polygon>
             <line x1="5" y1="19" x2="5" y2="5"></line>
           </svg>
         </button>
-        <button class="playbtn expanded-player__play" id="expandedPlayBtn" type="button" aria-label="Play/Pause">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+        <button class="playbtn" id="playBtn" type="button" aria-label="Play/Pause">
+          <svg id="playIcon" viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
             <polygon points="5 3 19 12 5 21 5 3"></polygon>
           </svg>
         </button>
-        <button class="iconbtn expanded-control" id="expandedNextBtn" type="button" aria-label="Next">
-          <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none">
+        <button class="iconbtn" id="nextBtn" type="button" aria-label="Next">
+          <svg viewBox="0 0 24 24" width="17" height="17" stroke="currentColor" stroke-width="2" fill="none">
             <polygon points="5 4 15 12 5 20 5 4"></polygon>
             <line x1="19" y1="5" x2="19" y2="19"></line>
           </svg>
         </button>
-        <button class="iconbtn expanded-control" id="expandedRepeatBtn" type="button" aria-label="Repeat">
-          <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none">
+        <button class="iconbtn ctrl-extra" id="repeatBtn" type="button" aria-label="Repeat" title="Repeat">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
             <polyline points="17 1 21 5 17 9"></polyline>
             <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
             <polyline points="7 23 3 19 7 15"></polyline>
@@ -300,39 +287,135 @@
           </svg>
         </button>
       </div>
-      <div class="expanded-player__visualizer" aria-hidden="true">
-        <span></span><span></span><span></span><span></span><span></span><span></span>
+      <div class="bottom-player__progress">
+        <div class="time" id="timeCurrent">0:00</div>
+        <input id="seek" class="range" type="range" min="0" max="100" value="0" step="0.1" aria-label="Seek">
+        <div class="time" id="timeDuration">0:00</div>
+      </div>
+    </div>
+
+    <div class="bottom-player__right">
+      <div class="vol">
+        <button class="iconbtn" id="muteBtn" aria-label="Mute">
+          <svg id="volIcon" viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+          </svg>
+        </button>
+        <input id="volume" class="range" type="range" min="0" max="1" value="1" step="0.01" style="width:68px" aria-label="Volume">
       </div>
     </div>
   </div>
 
-  <!-- ─── FAB (mobile upload) ─── -->
-  <button class="fab" id="fab" type="button" aria-label="Add Music">
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+  <!-- Expanded player -->
+  <div id="expandedPlayer" class="expanded-player" aria-hidden="true" inert>
+    <div class="expanded-player__content">
+      <div class="expanded-player__topbar">
+        <button class="iconbtn expanded-player__minimize" id="minimizePlayerBtn" type="button" aria-label="Minimize">
+          <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2.2" fill="none">
+            <polyline points="6 9 12 15 18 9"></polyline>
+          </svg>
+        </button>
+        <span class="expanded-player__label">Now Playing</span>
+        <button class="iconbtn" id="expandedFavBtn" aria-label="Favorite">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+          </svg>
+        </button>
+      </div>
+
+      <div class="waveform-wrap">
+        <canvas id="waveformCanvas" class="waveform-canvas"></canvas>
+        <div class="waveform-placeholder" id="waveformPlaceholder">
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+      </div>
+
+      <div class="expanded-player__art" id="expandedArt">
+        <img class="expanded-player__art-img hidden" id="expandedArtImg" src="" alt="">
+        <svg class="expanded-player__art-fallback" width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M9 18V5l12-2v13"></path>
+          <circle cx="6" cy="18" r="3"></circle>
+          <circle cx="18" cy="16" r="3"></circle>
+        </svg>
+      </div>
+
+      <div class="expanded-player__info">
+        <h2 class="expanded-player__title" id="expandedTitle">Nothing yet</h2>
+        <div class="expanded-player__meta-row">
+          <p class="expanded-player__meta" id="expandedMeta">Select a song</p>
+          <span class="quality-badge" id="expandedQuality">HiFi</span>
+        </div>
+      </div>
+
+      <div class="expanded-player__progress">
+        <div class="time" id="expandedTimeCurrent">0:00</div>
+        <input id="expandedSeek" class="range expanded-player__seek" type="range" min="0" max="100" value="0" step="0.1" aria-label="Seek">
+        <div class="time" id="expandedTimeDuration">0:00</div>
+      </div>
+
+      <div class="expanded-player__controls">
+        <button class="iconbtn expanded-control" id="expandedShuffleBtn" type="button" aria-label="Shuffle">
+          <svg viewBox="0 0 24 24" width="17" height="17" stroke="currentColor" stroke-width="2" fill="none">
+            <polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line>
+            <polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line>
+            <line x1="4" y1="4" x2="9" y2="9"></line>
+          </svg>
+        </button>
+        <button class="iconbtn expanded-control" id="expandedPrevBtn" type="button" aria-label="Previous">
+          <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none">
+            <polygon points="19 20 9 12 19 4 19 20"></polygon><line x1="5" y1="19" x2="5" y2="5"></line>
+          </svg>
+        </button>
+        <button class="playbtn expanded-player__play" id="expandedPlayBtn" type="button" aria-label="Play/Pause">
+          <svg id="expandedPlayIcon" viewBox="0 0 24 24" width="17" height="17" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+        </button>
+        <button class="iconbtn expanded-control" id="expandedNextBtn" type="button" aria-label="Next">
+          <svg viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" stroke-width="2" fill="none">
+            <polygon points="5 4 15 12 5 20 5 4"></polygon><line x1="19" y1="5" x2="19" y2="19"></line>
+          </svg>
+        </button>
+        <button class="iconbtn expanded-control" id="expandedRepeatBtn" type="button" aria-label="Repeat">
+          <svg viewBox="0 0 24 24" width="17" height="17" stroke="currentColor" stroke-width="2" fill="none">
+            <polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+            <polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FAB -->
+  <button class="fab" id="fab" type="button" aria-label="Upload">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
       <line x1="12" y1="5" x2="12" y2="19"></line>
       <line x1="5" y1="12" x2="19" y2="12"></line>
     </svg>
   </button>
 
-  <!-- ─── Mobile Bottom Nav ─── -->
+  <!-- Mobile bottom nav -->
   <nav class="bottom-nav" id="bottomNav">
     <button class="bottom-nav__item bottom-nav__item--active" type="button" data-nav="home">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
         <polyline points="9 22 9 12 15 12 15 22"></polyline>
       </svg>
       <span>Home</span>
     </button>
     <button class="bottom-nav__item" type="button" data-nav="library">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M9 18V5l12-2v13"></path>
-        <circle cx="6" cy="18" r="3"></circle>
-        <circle cx="18" cy="16" r="3"></circle>
+        <circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle>
       </svg>
       <span>Library</span>
     </button>
     <button class="bottom-nav__item" id="mobileUploadBtn" type="button" data-nav="upload">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
         <polyline points="17 8 12 3 7 8"></polyline>
         <line x1="12" y1="3" x2="12" y2="15"></line>
@@ -340,7 +423,7 @@
       <span>Upload</span>
     </button>
     <button class="bottom-nav__item" id="settingsNavBtn" type="button" data-nav="settings">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <circle cx="12" cy="12" r="3"></circle>
         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
       </svg>
@@ -348,43 +431,37 @@
     </button>
   </nav>
 
-  <!-- ─── Hidden audio element — required by JS ─── -->
   <audio id="audio" preload="metadata"></audio>
+</div>
 
-</div><!-- /app-shell -->
-
-<!-- ─── Upload Modal ─── -->
+<!-- Upload Modal -->
 <div class="modal" id="uploadModal" inert>
   <div class="modal__backdrop" id="uploadBackdrop"></div>
   <div class="modal__dialog">
     <div class="modal__header">
       <h3 class="modal__title">Upload Music</h3>
       <button class="modal__close" id="uploadCloseBtn" aria-label="Close">
-        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
+        <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2.5" fill="none">
+          <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
       </button>
     </div>
     <div class="modal__body">
       <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload audio files">
-        <div class="dropzone__icon" aria-hidden="true">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <div class="dropzone__icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
             <polyline points="17 8 12 3 7 8"></polyline>
             <line x1="12" y1="3" x2="12" y2="15"></line>
           </svg>
         </div>
         <div class="dropzone__title">Drop audio files here</div>
-        <div class="dropzone__subtitle">MP3, WAV, FLAC, AAC and more</div>
+        <div class="dropzone__subtitle">MP3 · WAV · FLAC · AAC · OGG</div>
       </div>
-      <!-- id="fileInput" REQUIRED by JS — must stay, can be hidden -->
-      <input id="fileInput" class="sr-only" type="file" accept="audio/*" multiple aria-label="Choose audio files">
-      <div class="upload-feedback hidden" id="uploadFeedback" aria-live="polite" aria-atomic="true">
-        <div class="upload-feedback__text" id="uploadStatusText">Uploading...</div>
-        <div class="upload-feedback__bar">
-          <div class="upload-feedback__fill" id="uploadProgressFill"></div>
-        </div>
+      <input id="fileInput" class="sr-only" type="file" accept="audio/*" multiple>
+      <div class="upload-feedback hidden" id="uploadFeedback" aria-live="polite">
+        <div class="upload-feedback__text" id="uploadStatusText">Uploading…</div>
+        <div class="upload-feedback__bar"><div class="upload-feedback__fill" id="uploadProgressFill"></div></div>
       </div>
       <div class="modal__actions">
         <label class="btn btn--primary" id="uploadBtnLabel" for="fileInput" tabindex="0">Select Files</label>
@@ -393,32 +470,29 @@
   </div>
 </div>
 
-<!-- ─── Auth Modal ─── -->
+<!-- Auth Modal -->
 <div class="modal" id="authModal" inert>
   <div class="modal__backdrop" id="authBackdrop"></div>
   <div class="modal__dialog modal__dialog--auth">
     <div class="modal__header">
       <h3 class="modal__title">Welcome to Music Cloud</h3>
       <button class="modal__close" id="authCloseBtn" aria-label="Close">
-        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
+        <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2.5" fill="none">
+          <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
       </button>
     </div>
     <div class="modal__body">
-      <div class="modal__oauth">
-        <button class="btn btn--oauth" id="googleLoginBtn" type="button">
-          <svg width="18" height="18" viewBox="0 0 24 24">
-            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
-            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-          </svg>
-          Continue with Google
-        </button>
-      </div>
-      <div class="modal__divider" role="separator"></div>
+      <button class="btn btn--oauth" id="googleLoginBtn" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24">
+          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/>
+          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+        </svg>
+        Continue with Google
+      </button>
+      <div class="modal__divider"></div>
       <div class="input-group">
         <label class="input__label" for="authEmail">Email</label>
         <input class="input" id="authEmail" type="email" placeholder="you@example.com">
@@ -435,16 +509,15 @@
   </div>
 </div>
 
-<!-- ─── Settings Modal ─── -->
+<!-- Settings Modal -->
 <div class="modal" id="settingsModal" inert>
   <div class="modal__backdrop" id="settingsBackdrop"></div>
   <div class="modal__dialog">
     <div class="modal__header">
       <h3 class="modal__title">Settings</h3>
       <button class="modal__close" id="settingsCloseBtn" aria-label="Close">
-        <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2.5" fill="none">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
+        <svg viewBox="0 0 24 24" width="13" height="13" stroke="currentColor" stroke-width="2.5" fill="none">
+          <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
         </svg>
       </button>
     </div>
@@ -465,17 +538,11 @@
           <button class="theme-toggle" id="themeToggle" type="button" aria-label="Toggle theme">
             <div class="theme-toggle__track">
               <div class="theme-toggle__thumb">
-                <svg class="theme-icon theme-icon--dark" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <svg class="theme-icon theme-icon--dark" width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
                 </svg>
-                <svg class="theme-icon theme-icon--light" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2">
+                <svg class="theme-icon theme-icon--light" width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
                   <circle cx="12" cy="12" r="5"></circle>
-                  <line x1="12" y1="1" x2="12" y2="3"></line>
-                  <line x1="12" y1="21" x2="12" y2="23"></line>
-                  <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
-                  <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
-                  <line x1="1" y1="12" x2="3" y2="12"></line>
-                  <line x1="21" y1="12" x2="23" y2="12"></line>
                 </svg>
               </div>
             </div>
@@ -483,7 +550,7 @@
         </div>
         <div class="settings-divider"></div>
         <button class="btn btn--danger btn--full" id="logoutBtnSettings" type="button">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
             <polyline points="16 17 21 12 16 7"></polyline>
             <line x1="21" y1="12" x2="9" y2="12"></line>
@@ -494,6 +561,9 @@
     </div>
   </div>
 </div>
+
+<!-- Toast -->
+<div class="toast" id="toast" aria-live="polite"></div>
 
 <script type="module" src="main.js"></script>
 </body>

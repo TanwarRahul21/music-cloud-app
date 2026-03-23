@@ -40,6 +40,7 @@ const els = {
   uploadModal: document.getElementById("uploadModal"),
   uploadBackdrop: document.getElementById("uploadBackdrop"),
   uploadCloseBtn: document.getElementById("uploadCloseBtn"),
+  uploadList: document.getElementById("uploadList"),
   appShell: document.querySelector('.app-shell'),
   bottomPlayer: document.getElementById('bottomPlayer'),
   expandPlayerBtn: document.getElementById('expandPlayerBtn'),
@@ -75,10 +76,16 @@ const els = {
   storageQuotaText: document.getElementById('storageQuotaText'),
   dragOverlay: document.getElementById('dragOverlay'),
   heroUploadBtn: document.getElementById('heroUploadBtn'),
+  emptyUploadBtn: document.getElementById('emptyUploadBtn'),
   nowPlayingTitle: document.getElementById('nowPlayingTitle'),
   nowPlayingArtist: document.getElementById('nowPlayingArtist'),
   nowPlayingArt: document.getElementById('nowPlayingArt'),
   nowPlayingImg: document.getElementById('nowPlayingImg'),
+  playerFavBtn: document.getElementById('playerFavBtn'),
+  expandedFavBtn: document.getElementById('expandedFavBtn'),
+  shuffleBtn: document.getElementById('shuffleBtn'),
+  repeatBtn: document.getElementById('repeatBtn'),
+  muteBtn: document.getElementById('muteBtn'),
   playBtnDesktop: document.getElementById('playBtnDesktop'),
   prevBtnDesktop: document.getElementById('prevBtnDesktop'),
   nextBtnDesktop: document.getElementById('nextBtnDesktop'),
@@ -190,7 +197,20 @@ function toggleFavorite(trackId) {
   if (favoriteTrackIds.has(trackId)) favoriteTrackIds.delete(trackId);
   else favoriteTrackIds.add(trackId);
   saveFavorites();
+  if (tracks[currentIndex]?.id === trackId) updateFavoriteButtons(trackId);
   return favoriteTrackIds.has(trackId);
+}
+
+function setFavoriteButtonState(btn, isActive, activeClass) {
+  if (!btn) return;
+  btn.classList.toggle(activeClass, isActive);
+  btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+}
+
+function updateFavoriteButtons(trackId) {
+  const isFav = trackId ? isFavorite(trackId) : false;
+  setFavoriteButtonState(els.playerFavBtn, isFav, 'player__fav-btn--active');
+  setFavoriteButtonState(els.expandedFavBtn, isFav, 'expanded-fav-btn--active');
 }
 
 function setActiveNavigation(view) {
@@ -443,6 +463,8 @@ function selectTrack(index, { autoplay }) {
   setArtwork(els.nowPlayingArt, els.nowPlayingImg, artworkUrl, `${track.name} cover art`);
   setArtwork(els.expandedArt, els.expandedArtImg, artworkUrl, `${track.name} cover art`);
 
+  updateFavoriteButtons(track.id);
+
   if (els.expandedTitle) els.expandedTitle.textContent = track.name;
   if (els.expandedMeta) {
     els.expandedMeta.textContent = `${track.duration ? formatTime(track.duration) : '--:--'} • ${formatBytes(track.size)}`;
@@ -474,6 +496,7 @@ function stopPlayback() {
   setArtwork(els.playerArt, els.playerArtImg, null, 'Current track cover art');
   setArtwork(els.nowPlayingArt, els.nowPlayingImg, null, 'Now playing cover art');
   setArtwork(els.expandedArt, els.expandedArtImg, null, 'Expanded player cover art');
+  updateFavoriteButtons(null);
   els.audio.removeAttribute('src');
   updatePlayBtn();
   syncExpandedPlayerData();
@@ -509,11 +532,24 @@ function prevTrack() {
   selectTrack(idx, { autoplay: true });
 }
 
+function setPlayIcon(svgEl, isPaused) {
+  if (!svgEl) return;
+  if (isPaused) {
+    svgEl.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"></polygon>';
+  } else {
+    svgEl.innerHTML = '<rect x="6" y="5" width="4" height="14"></rect><rect x="14" y="5" width="4" height="14"></rect>';
+  }
+}
+
 function updatePlayBtn() {
-  const icon = player.paused ? "▶" : "⏸";
-  els.playBtn.textContent = icon;
-  if (els.playBtnDesktop) els.playBtnDesktop.textContent = icon;
-  if (els.expandedPlayBtn) els.expandedPlayBtn.textContent = icon;
+  const isPaused = player.paused;
+  const playIcon = document.getElementById('playIcon');
+  const expandedPlayIcon = document.getElementById('expandedPlayIcon');
+  setPlayIcon(playIcon, isPaused);
+  setPlayIcon(expandedPlayIcon, isPaused);
+  if (els.playBtnDesktop && !els.playBtnDesktop.querySelector('svg')) {
+    els.playBtnDesktop.textContent = isPaused ? 'Play' : 'Pause';
+  }
   if (els.audioVisualizer) els.audioVisualizer.classList.toggle('playing', !player.paused);
 }
 
@@ -626,26 +662,48 @@ function renderPlaylist() {
     const durText = track.duration == null ? "--:--" : formatTime(track.duration);
 
     row.innerHTML = `
-      <div class="row__thumb">
-        <img class="row__thumb-img hidden" alt="${track.name} cover art" loading="lazy">
-        <svg class="row__thumb-fallback" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
+      <div class="row__num">
+        <span class="row__num-text">${String(idx + 1).padStart(2, '0')}</span>
+        <span class="row__play-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+        </span>
       </div>
       <div class="row__main">
-        <div class="row__title">
-          <span class="track-name"></span>
-          <div class="quality-badge">${qualityBadge}</div>
+        <div class="row__thumb">
+          <img class="row__thumb-img hidden" alt="${track.name} cover art" loading="lazy">
+          <svg class="row__thumb-fallback" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
         </div>
-        <div class="row__sub"></div>
+        <div class="row__text">
+          <div class="row__title">
+            <span class="track-name"></span>
+            <div class="quality-badge">${qualityBadge}</div>
+          </div>
+          <div class="row__sub"></div>
+        </div>
       </div>
-      <div class="row__actions">
-        <button class="btn btn--danger" type="button" data-action="delete">Delete</button>
-        <button class="btn" type="button" data-action="like">${isFavorite(track.id) ? 'Liked' : 'Like'}</button>
-        <button class="btn" type="button" data-action="library">${isInLibrary(track.id) ? 'In Library' : 'Add to Library'}</button>
+      <button class="row__fav" type="button" data-action="like" aria-label="Favorite">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+        </svg>
+      </button>
+      <div class="row__dur">
+        <span class="row__dur-text">${durText}</span>
+        <button class="row__delete" type="button" data-action="delete" aria-label="Delete">
+          <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path>
+            <path d="M10 11v6"></path>
+            <path d="M14 11v6"></path>
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path>
+          </svg>
+        </button>
       </div>
     `;
 
     row.querySelector('.track-name').textContent = track.name;
-    row.querySelector('.row__sub').textContent = `${durText} • ${formatBytes(track.size)}`;
+    row.querySelector('.row__sub').textContent = formatBytes(track.size);
 
     const rowThumb = row.querySelector('.row__thumb');
     const rowThumbImg = row.querySelector('.row__thumb-img');
@@ -654,6 +712,9 @@ function renderPlaylist() {
     rowThumbImg.addEventListener('error', () => {
       setArtwork(rowThumb, rowThumbImg, null, `${track.name} cover art`);
     });
+
+    const favBtn = row.querySelector('.row__fav');
+    favBtn.classList.toggle('row__fav--active', isFavorite(track.id));
 
     row.addEventListener('click', async (e) => {
       const btn = e.target.closest('button');
@@ -667,22 +728,11 @@ function renderPlaylist() {
       if (action === 'like') {
         e.stopPropagation();
         const nowFavorite = toggleFavorite(track.id);
-        row.querySelector('[data-action="like"]').textContent = nowFavorite ? 'Liked' : 'Like';
+        favBtn.classList.toggle('row__fav--active', nowFavorite);
         toast(nowFavorite ? 'Added to favorites' : 'Removed from favorites');
         if (currentView === 'favorites' && !nowFavorite) {
           applySearchFilter();
           renderPlaylist();
-        }
-        return;
-      }
-      if (action === 'library') {
-        e.stopPropagation();
-        const added = addToLibrary(track.id);
-        if (added) {
-          row.querySelector('[data-action="library"]').textContent = 'In Library';
-          toast('Added to Library');
-        } else {
-          toast('Already in Library');
         }
         return;
       }
@@ -740,7 +790,69 @@ function hideUploadUiStateLater() {
     if (isUploading) return;
     els.uploadFeedback?.classList.add('hidden');
     if (els.uploadProgressFill) els.uploadProgressFill.style.width = '0%';
+    if (els.uploadList) {
+      els.uploadList.classList.add('hidden');
+      els.uploadList.innerHTML = '';
+    }
   }, 2000);
+}
+
+function buildUploadList(items) {
+  const uploadMap = new Map();
+  if (!els.uploadList) return uploadMap;
+  els.uploadList.innerHTML = '';
+  if (!items.length) {
+    els.uploadList.classList.add('hidden');
+    return uploadMap;
+  }
+  els.uploadList.classList.remove('hidden');
+  const frag = document.createDocumentFragment();
+  items.forEach((item) => {
+    const row = document.createElement('div');
+    row.className = 'upload-item upload-item--waiting';
+    row.dataset.id = item.id;
+
+    const icon = document.createElement('div');
+    icon.className = 'upload-item__icon';
+    icon.textContent = '-';
+
+    const name = document.createElement('div');
+    name.className = 'upload-item__name';
+    name.textContent = item.name;
+
+    const status = document.createElement('div');
+    status.className = 'upload-item__status';
+    status.textContent = 'waiting';
+
+    const bar = document.createElement('div');
+    bar.className = 'upload-item__bar';
+    const fill = document.createElement('div');
+    fill.className = 'upload-item__fill';
+    bar.appendChild(fill);
+
+    row.appendChild(icon);
+    row.appendChild(name);
+    row.appendChild(status);
+    row.appendChild(bar);
+
+    frag.appendChild(row);
+    uploadMap.set(item.id, { row, icon, status, fill });
+  });
+  els.uploadList.appendChild(frag);
+  return uploadMap;
+}
+
+function updateUploadRow(rowParts, item) {
+  if (!rowParts) return;
+  rowParts.row.className = `upload-item upload-item--${item.status}`;
+  if (item.status === 'done') rowParts.icon.textContent = 'v';
+  else if (item.status === 'failed') rowParts.icon.textContent = 'x';
+  else if (item.status === 'uploading') rowParts.icon.textContent = '~';
+  else rowParts.icon.textContent = '-';
+  rowParts.status.textContent = item.status === 'uploading'
+    ? `${Math.round(item.progress)}%`
+    : item.status;
+  rowParts.fill.style.width = `${Math.max(0, Math.min(100, item.progress))}%`;
 }
 
 // ─── PATCHED: handleUpload ────────────────────────────────────────
@@ -774,26 +886,66 @@ async function handleUpload(files) {
     let completed = 0;
     let failed = 0;
 
-    function onFileDone(succeeded) {
+    const uploadItems = parsed.map((t) => ({
+      id: t.id,
+      name: t.name,
+      status: 'waiting',
+      progress: 0,
+    }));
+
+    const uploadItemMap = new Map(uploadItems.map((item) => [item.id, item]));
+    const uploadRowMap = buildUploadList(uploadItems);
+
+    function startProgress(item) {
+      if (item.timer) clearInterval(item.timer);
+      item.progress = 0;
+      item.timer = setInterval(() => {
+        if (item.status !== 'uploading') return;
+        item.progress = Math.min(90, item.progress + 6 + Math.random() * 10);
+        updateUploadRow(uploadRowMap.get(item.id), item);
+      }, 350);
+    }
+
+    function stopProgress(item) {
+      if (item.timer) clearInterval(item.timer);
+      item.timer = null;
+    }
+
+    function onFileDone(succeeded, item) {
       completed++;
       if (!succeeded) failed++;
+      if (item) {
+        stopProgress(item);
+        item.status = succeeded ? 'done' : 'failed';
+        item.progress = 100;
+        updateUploadRow(uploadRowMap.get(item.id), item);
+      }
       const pct = Math.round((completed / total) * 100);
       setUploadUiState(
         true,
-        `Uploaded ${completed - failed}/${total}${failed ? ` · ${failed} failed` : ''}`,
+        `Uploaded ${completed - failed}/${total}${failed ? ` - ${failed} failed` : ''}`,
         pct
       );
     }
 
     // Upload 3 files at a time instead of 1 at a time
     await uploadPool(parsed, 3, async (t) => {
+      const item = uploadItemMap.get(t.id);
+      if (item) {
+        item.status = 'uploading';
+        updateUploadRow(uploadRowMap.get(item.id), item);
+        startProgress(item);
+        if (els.uploadStatusText) {
+          els.uploadStatusText.textContent = `Uploading ${completed + 1}/${total} - ${item.name}`;
+        }
+      }
       try {
         await uploadOneFile(t);
-        onFileDone(true);
+        onFileDone(true, item);
       } catch (err) {
         console.error(`Failed to upload "${t.name}":`, err.message);
         toast(`Failed: ${t.name}`);
-        onFileDone(false);
+        onFileDone(false, item);
       }
     });
 
@@ -855,6 +1007,7 @@ async function uploadOneFile(t) {
     type:     t.type,
     size:     t.size,
     duration: t.duration,
+    artwork_url: t.artwork_url,
     addedAt:  t.addedAt,
     url:      pub.publicUrl,
     path,
@@ -951,7 +1104,20 @@ function wireEvents() {
     els.expandedRepeatBtn.classList.toggle('is-active', isRepeatEnabled);
   });
 
+  els.shuffleBtn?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    isShuffleEnabled = !isShuffleEnabled;
+    els.shuffleBtn.classList.toggle('is-active', isShuffleEnabled);
+  });
+
+  els.repeatBtn?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    isRepeatEnabled = !isRepeatEnabled;
+    els.repeatBtn.classList.toggle('is-active', isRepeatEnabled);
+  });
+
   if (els.heroUploadBtn) els.heroUploadBtn.addEventListener("click", showUploadModal);
+  if (els.emptyUploadBtn) els.emptyUploadBtn.addEventListener("click", showUploadModal);
 
   let dragCounter = 0;
   document.addEventListener('dragenter', (e) => {
@@ -1043,6 +1209,32 @@ function wireEvents() {
     nextTrack();
   });
 
+  els.playerFavBtn?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const track = getCurrentTrack();
+    if (!track) return;
+    const nowFavorite = toggleFavorite(track.id);
+    updateFavoriteButtons(track.id);
+    toast(nowFavorite ? 'Added to favorites' : 'Removed from favorites');
+    if (currentView === 'favorites' && !nowFavorite) {
+      applySearchFilter();
+      renderPlaylist();
+    }
+  });
+
+  els.expandedFavBtn?.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const track = getCurrentTrack();
+    if (!track) return;
+    const nowFavorite = toggleFavorite(track.id);
+    updateFavoriteButtons(track.id);
+    toast(nowFavorite ? 'Added to favorites' : 'Removed from favorites');
+    if (currentView === 'favorites' && !nowFavorite) {
+      applySearchFilter();
+      renderPlaylist();
+    }
+  });
+
   els.authCloseBtn.addEventListener('click', hideAuthModal);
   els.authBackdrop.addEventListener('click', hideAuthModal);
   els.fab.addEventListener('click', showUploadModal);
@@ -1103,6 +1295,10 @@ function showUploadModal() {
   isUploading = false;
   els.uploadFeedback?.classList.add('hidden');
   if (els.uploadProgressFill) els.uploadProgressFill.style.width = '0%';
+  if (els.uploadList) {
+    els.uploadList.classList.add('hidden');
+    els.uploadList.innerHTML = '';
+  }
   els.fileInput.disabled = false;
   els.dropzone.classList.remove('dropzone--disabled');
   els.uploadBtnLabel?.classList.remove('btn--disabled');

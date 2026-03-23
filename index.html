@@ -463,6 +463,7 @@
         <div class="upload-feedback__text" id="uploadStatusText">Uploading…</div>
         <div class="upload-feedback__bar"><div class="upload-feedback__fill" id="uploadProgressFill"></div></div>
       </div>
+      <div class="upload-list hidden" id="uploadList" aria-live="polite"></div>
       <div class="modal__actions">
         <label class="btn btn--primary" id="uploadBtnLabel" for="fileInput" tabindex="0">Select Files</label>
       </div>
@@ -565,6 +566,7 @@
 <!-- Toast -->
 <div class="toast" id="toast" aria-live="polite"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/music-metadata-browser@2/dist/music-metadata-browser.js"></script>
 <script type="module" src="main.js"></script>
 </body>
 </html>

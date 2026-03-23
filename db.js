@@ -39,9 +39,10 @@ export async function saveDbTrack(track) {
     size: track.size,
     type: track.type ?? null,
     duration: track.duration ?? null,
+    artwork_url: track.artwork_url ?? track.artworkUrl ?? null,
     url: track.url,
     path: track.path ?? null,
-    added_at: new Date().toISOString()
+    added_at: track.addedAt ? new Date(track.addedAt).toISOString() : new Date().toISOString()
   };
 
   const { error } = await supabase

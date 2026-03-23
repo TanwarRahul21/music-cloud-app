@@ -61,6 +61,30 @@ async function safeGetDuration(blob, timeoutMs = 5000) {
   }
 }
 
+function blobToDataUrl(blob) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function getArtworkDataUrl(file) {
+  const metadataLib = globalThis.musicMetadata;
+  if (!metadataLib?.parseBlob) return null;
+  try {
+    const metadata = await metadataLib.parseBlob(file);
+    const picture = metadata?.common?.picture?.[0];
+    if (!picture?.data) return null;
+    const mime = picture.format || 'image/jpeg';
+    const artBlob = new Blob([picture.data], { type: mime });
+    return await blobToDataUrl(artBlob);
+  } catch {
+    return null;
+  }
+}
+
 // ─── PATCHED: processFiles ────────────────────────────────────────
 // BEFORE: for loop with await — read each duration one by one
 //         10 files = ~10 seconds just to prepare before uploading
@@ -74,7 +98,10 @@ export async function processFiles(fileList) {
 
   const validTracks = await Promise.all(
     files.map(async (file) => {
-      const duration = await safeGetDuration(file);
+      const [duration, artworkUrl] = await Promise.all([
+        safeGetDuration(file),
+        getArtworkDataUrl(file),
+      ]);
       return {
         id:          genId(),
         name:        file.name,
@@ -83,6 +110,7 @@ export async function processFiles(fileList) {
         type:        file.type || "",
         addedAt:     Date.now(),
         duration:    duration,
+        artwork_url: artworkUrl,
         blob:        file,
       };
     })

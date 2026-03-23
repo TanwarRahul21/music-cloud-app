@@ -1,6 +1,6 @@
 import { toast, formatBytes, formatTime } from './utils.js';
 import { initDb, loadDbTracks, saveDbTrack, deleteDbTrack, clearAllDbTracks } from './db.js';
-import { processFiles } from './upload.js';
+import { processFiles, sanitizeFilename } from './upload.js';
 import { Player } from './player.js';
 import {
   supabase,
@@ -835,7 +835,11 @@ async function uploadPool(items, limit, task) {
 // can run concurrently inside uploadPool.
 // ─────────────────────────────────────────────────────────────────
 async function uploadOneFile(t) {
-  const path = `${user.id}/${t.id}__${t.storageName}`;
+  if (!user?.id) throw new Error('Not logged in');
+  if (!t?.blob) throw new Error(`Missing file data for ${t?.name || 'file'}`);
+
+  const storageName = t.storageName || sanitizeFilename(t.name || 'file');
+  const path = `${user.id}/${t.id}__${storageName}`;
 
   const { error: upErr } = await supabase.storage
     .from(BUCKET)
@@ -848,6 +852,7 @@ async function uploadOneFile(t) {
   await saveDbTrack({
     id:       t.id,
     name:     t.name,
+    type:     t.type,
     size:     t.size,
     duration: t.duration,
     addedAt:  t.addedAt,

@@ -49,6 +49,18 @@ export function getDuration(blob) {
   });
 }
 
+// ensure duration lookup never hangs forever; fallback to null after a timeout
+async function safeGetDuration(blob, timeoutMs = 5000) {
+  try {
+    return await Promise.race([
+      getDuration(blob),
+      new Promise((resolve) => setTimeout(() => resolve(null), timeoutMs)),
+    ]);
+  } catch {
+    return null;
+  }
+}
+
 // ─── PATCHED: processFiles ────────────────────────────────────────
 // BEFORE: for loop with await — read each duration one by one
 //         10 files = ~10 seconds just to prepare before uploading
@@ -62,7 +74,7 @@ export async function processFiles(fileList) {
 
   const validTracks = await Promise.all(
     files.map(async (file) => {
-      const duration = await getDuration(file);
+      const duration = await safeGetDuration(file);
       return {
         id:          genId(),
         name:        file.name,

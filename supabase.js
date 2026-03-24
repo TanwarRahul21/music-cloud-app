@@ -3,11 +3,28 @@ import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js
 const supabaseUrl = "https://qquitczzzdhlswhojphx.supabase.co";
 const supabaseKey = "sb_publishable_NF9ocYFvNxWXy0YWNsIUUg_AjkqzKtF";
 
-const safeFetch = async (url, options) => {
+const safeFetch = async (url, options = {}) => {
+	const requestUrl = typeof url === 'string' ? url : url?.toString?.() ?? '';
+	const isSupabaseRequest = requestUrl.startsWith(supabaseUrl);
+	const body = options?.body;
+	const headers = new Headers(options?.headers || {});
+
+	if (isSupabaseRequest) {
+		if (!headers.has('apikey')) headers.set('apikey', supabaseKey);
+		if (!headers.has('Accept')) headers.set('Accept', 'application/json');
+
+		const hasContentType = headers.has('Content-Type');
+		const isJsonBody = typeof body === 'string';
+		if (!hasContentType && isJsonBody) {
+			headers.set('Content-Type', 'application/json');
+		}
+	}
+
+	const mergedOptions = { ...options, headers };
+
 	try {
-		return await fetch(url, options);
+		return await fetch(url, mergedOptions);
 	} catch (err) {
-		const requestUrl = typeof url === 'string' ? url : url?.toString?.() ?? '';
 		const isRefreshToken = requestUrl.includes('/auth/v1/token')
 			&& requestUrl.includes('grant_type=refresh_token');
 		const isOfflineFetch = err?.name === 'TypeError' && err?.message === 'Failed to fetch';

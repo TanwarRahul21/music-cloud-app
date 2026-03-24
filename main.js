@@ -977,8 +977,12 @@ async function handleUpload(files) {
       );
     }
 
+    const isMobileUpload = /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      || (navigator.maxTouchPoints || 0) > 1;
+    const uploadConcurrency = isMobileUpload ? 1 : 3;
+
     // Upload 3 files at a time instead of 1 at a time
-    await uploadPool(parsed, 3, async (t) => {
+    await uploadPool(parsed, uploadConcurrency, async (t) => {
       const item = uploadItemMap.get(t.id);
       if (item) {
         item.status = 'uploading';
@@ -1043,9 +1047,10 @@ async function uploadOneFile(t) {
   const storageName = t.storageName || sanitizeFilename(t.name || 'file');
   const path = `${user.id}/${t.id}__${storageName}`;
 
+  const contentType = t.type && t.type.trim() ? t.type : undefined;
   const { error: upErr } = await supabase.storage
     .from(BUCKET)
-    .upload(path, t.blob, { cacheControl: '3600', upsert: false });
+    .upload(path, t.blob, { cacheControl: '3600', upsert: false, contentType });
 
   if (upErr) throw new Error(`Failed to upload ${t.name}: ${upErr.message}`);
 

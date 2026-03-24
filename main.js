@@ -250,7 +250,19 @@ async function init() {
   await initDb();
 
   const { data: sessionData } = await supabase.auth.getSession();
-  await handleAuthChange(sessionData?.session?.user ?? null);
+  let sessionUser = sessionData?.session?.user ?? null;
+
+  if (!sessionUser) {
+    try {
+      const { data: anonData } = await supabase.auth.signInAnonymously();
+      sessionUser = anonData?.user ?? null;
+      console.log('Anonymous sign-in success:', !!sessionUser);
+    } catch (err) {
+      console.error('Anonymous sign-in failed', err);
+    }
+  }
+
+  await handleAuthChange(sessionUser);
 
   supabase.auth.onAuthStateChange(async (event, session) => {
     const sessionUser = session?.user ?? null;
@@ -1016,36 +1028,47 @@ async function handleUpload(files) {
 }
 
 async function xhrUploadToStorage(path, blob, contentType) {
-  // Get real auth token from current session
-  const { data: { session } } = await supabase.auth.getSession();
-  const token = session?.access_token;
+  let token;
 
-  if (!token) {
-    return { data: null, error: { message: 'Not authenticated' } };
+  try {
+    const sessionResult = await supabase.auth.getSession();
+    token = sessionResult?.data?.session?.access_token;
+    console.log('Session token found:', !!token);
+  } catch (e) {
+    console.log('getSession error:', e);
   }
 
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    const url = `${supabase.supabaseUrl}/storage/v1/object/${BUCKET}/${path}`;
+  // If no session token, try getUser as fallback
+  if (!token) {
+    try {
+      const { data } = await supabase.auth.getUser();
+      console.log('getUser result:', data);
+    } catch(e) {}
+  }
 
-    console.log('XHR uploading to:', url);
-    console.log('Token preview:', token.substring(0, 20));
+  if (!token) {
+    console.error('NO AUTH TOKEN FOUND - user may not be logged in');
+    return { data: null, error: { message: 'Not authenticated - please log in' } };
+  }
+
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    const baseUrl = supabase.supabaseUrl;
+    const url = `${baseUrl}/storage/v1/object/${BUCKET}/${path}`;
+
+    console.log('Uploading with JWT token preview:', token.substring(0, 30));
 
     xhr.addEventListener('load', () => {
-      console.log('XHR done:', xhr.status, xhr.responseText);
+      console.log('XHR result:', xhr.status, xhr.responseText.substring(0, 100));
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve({ data: { path }, error: null });
       } else {
-        resolve({ data: null, error: { message: `Upload failed: ${xhr.status}` } });
+        resolve({ data: null, error: { message: `Upload failed: ${xhr.status} - ${xhr.responseText}` } });
       }
     });
 
-    xhr.addEventListener('error', () =>
-      resolve({ data: null, error: { message: 'Network error' } })
-    );
-    xhr.addEventListener('timeout', () =>
-      resolve({ data: null, error: { message: 'Upload timed out' } })
-    );
+    xhr.addEventListener('error', () => resolve({ data: null, error: { message: 'Network error' } }));
+    xhr.addEventListener('timeout', () => resolve({ data: null, error: { message: 'Timeout' } }));
 
     xhr.timeout = 120000;
     xhr.open('POST', url);

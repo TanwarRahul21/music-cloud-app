@@ -1,12 +1,6 @@
 import { genId } from './utils.js';
 
 const AUDIO_EXTENSIONS = ["mp3","wav","ogg","m4a","aac","flac","webm","opus"];
-const VALID_AUDIO_MIME_TYPES = [
-  'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/flac',
-  'audio/aac', 'audio/ogg', 'audio/x-m4a', 'audio/mp4',
-  'audio/x-flac', 'audio/wave', 'audio/x-wav', 'video/mp4',
-];
-const VALID_AUDIO_EXTENSIONS = ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.mp4'];
 
 // sanitize filename for storage — unchanged
 export function sanitizeFilename(filename) {
@@ -25,13 +19,11 @@ export function sanitizeFilename(filename) {
 
 // check if file is audio — unchanged
 export function isAudioFile(file) {
-  if (!file) return false;
+  if (!file || !file.name) return false;
   console.log('File type:', file.type, 'File name:', file.name);
-  const lower = (file.name || "").toLowerCase();
-  const hasValidExtension = VALID_AUDIO_EXTENSIONS.some((ext) => lower.endsWith(ext));
-  const hasValidMime = VALID_AUDIO_MIME_TYPES.includes(file.type)
-    || (file.type && file.type.startsWith("audio/"));
-  return hasValidExtension || hasValidMime || AUDIO_EXTENSIONS.some((ext) => lower.endsWith(`.${ext}`));
+  const validExtensions = ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.mp4', '.wma', '.opus'];
+  const fileName = file.name.toLowerCase();
+  return validExtensions.some((ext) => fileName.endsWith(ext));
 }
 
 // get audio duration — unchanged

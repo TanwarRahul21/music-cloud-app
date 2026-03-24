@@ -106,9 +106,10 @@ function genId() {
 }
 
 function isLikelyAudioFile(file) {
-  if (file.type && file.type.startsWith("audio/")) return true;
-  const name = file.name.toLowerCase();
-  return AUDIO_EXTENSIONS.some(ext => name.endsWith("." + ext));
+  if (!file || !file.name) return false;
+  const validExtensions = ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.mp4', '.wma', '.opus'];
+  const fileName = file.name.toLowerCase();
+  return validExtensions.some(ext => fileName.endsWith(ext));
 }
 
 function cleanName(filename) {

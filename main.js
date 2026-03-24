@@ -1007,7 +1007,6 @@ async function uploadOneFile(t) {
     type:     t.type,
     size:     t.size,
     duration: t.duration,
-    artwork_url: t.artwork_url,
     addedAt:  t.addedAt,
     url:      pub.publicUrl,
     path,

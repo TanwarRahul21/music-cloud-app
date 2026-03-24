@@ -32,6 +32,7 @@ export async function saveDbTrack(track) {
   const userId = session?.user?.id;
   if (!userId) throw new Error('No logged-in user');
 
+  const artworkUrl = track.artwork_url ?? track.artworkUrl ?? null;
   const payload = {
     id: track.id,
     user_id: userId,
@@ -39,7 +40,7 @@ export async function saveDbTrack(track) {
     size: track.size,
     type: track.type ?? null,
     duration: track.duration ?? null,
-    artwork_url: track.artwork_url ?? track.artworkUrl ?? null,
+    ...(artworkUrl ? { artwork_url: artworkUrl } : {}),
     url: track.url,
     path: track.path ?? null,
     added_at: track.addedAt ? new Date(track.addedAt).toISOString() : new Date().toISOString()

@@ -1015,6 +1015,36 @@ async function handleUpload(files) {
   }
 }
 
+function xhrUploadToStorage(path, blob, contentType) {
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+    const url = `${supabase.supabaseUrl}/storage/v1/object/${BUCKET}/${path}`;
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve({ data: { path }, error: null });
+      } else {
+        resolve({ data: null, error: { message: `Upload failed: ${xhr.status}` } });
+      }
+    });
+
+    xhr.addEventListener('error', () =>
+      resolve({ data: null, error: { message: 'Network error during upload' } })
+    );
+
+    xhr.addEventListener('timeout', () =>
+      resolve({ data: null, error: { message: 'Upload timed out' } })
+    );
+
+    xhr.timeout = 120000;
+    xhr.open('POST', url);
+    xhr.setRequestHeader('Authorization', `Bearer ${supabase.supabaseKey}`);
+    xhr.setRequestHeader('x-upsert', 'true');
+    xhr.setRequestHeader('Content-Type', contentType || 'audio/mpeg');
+    xhr.send(blob);
+  });
+}
+
 // ─── NEW: uploadOneFile ───────────────────────────────────────────
 // Uploads one track to Supabase Storage then saves to DB.
 // Used by the sequential uploader in handleUpload.
@@ -1026,23 +1056,9 @@ async function uploadOneFile(t) {
   const storageName = t.storageName || sanitizeFilename(t.name || 'file');
   const path = `${user.id}/${t.id}__${storageName}`;
 
-  const contentType = t.type && t.type.trim() ? t.type : undefined;
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 30000);
-  try {
-    const { error: upErr } = await supabase.storage
-      .from(BUCKET)
-      .upload(path, t.blob, { cacheControl: '3600', upsert: false, contentType, signal: controller.signal });
+  const { error: upErr } = await xhrUploadToStorage(path, t.blob, t.blob.type || 'audio/mpeg');
 
-    if (upErr) throw new Error(`Failed to upload ${t.name}: ${upErr.message}`);
-  } catch (err) {
-    if (controller.signal.aborted) {
-      throw new Error(`Upload timed out for ${t.name}`);
-    }
-    throw err;
-  } finally {
-    clearTimeout(timeoutId);
-  }
+  if (upErr) throw new Error(`Failed to upload ${t.name}: ${upErr.message}`);
 
   const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
 

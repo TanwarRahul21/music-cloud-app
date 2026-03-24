@@ -20,10 +20,8 @@ export function sanitizeFilename(filename) {
 // check if file is audio — unchanged
 export function isAudioFile(file) {
   if (!file || !file.name) return false;
-  console.log('File type:', file.type, 'File name:', file.name);
-  const validExtensions = ['.mp3', '.wav', '.flac', '.aac', '.ogg', '.m4a', '.mp4', '.wma', '.opus'];
-  const fileName = file.name.toLowerCase();
-  return validExtensions.some((ext) => fileName.endsWith(ext));
+  const ext = file.name.toLowerCase().split('.').pop();
+  return ['mp3','wav','flac','aac','ogg','m4a','opus','wma'].includes(ext);
 }
 
 // get audio duration — unchanged

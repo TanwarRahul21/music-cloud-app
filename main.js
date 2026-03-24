@@ -106,11 +106,9 @@ let isShuffleEnabled = false;
 let isRepeatEnabled = false;
 let player;
 let isUploading = false;
-let storageWarnedThisSession = false;
 
 const BUCKET = 'Songs';
-const STORAGE_LIMIT_BYTES = 1024 * 1024 * 1024;
-const STORAGE_WARNING_BYTES = 900 * 1024 * 1024;
+const STORAGE_LIMIT_BYTES = 4 * 1024 * 1024 * 1024;
 const FAVORITES_KEY_PREFIX = 'music-cloud-favorites';
 const LIBRARY_KEY_PREFIX = 'music-cloud-library';
 
@@ -118,16 +116,6 @@ let currentView = 'all';
 let favoriteTrackIds = new Set();
 let libraryTrackIds = new Set();
 let hasSavedLibraryCollection = false;
-
-function isQuotaError(err) {
-  const message = (err?.message || err?.error_description || '').toLowerCase();
-  return message.includes('quota')
-    || message.includes('storage')
-    || message.includes('limit')
-    || message.includes('exceeded')
-    || message.includes('insufficient')
-    || message.includes('full');
-}
 
 function getFavoritesStorageKey() {
   return `${FAVORITES_KEY_PREFIX}:${user?.id || 'guest'}`;
@@ -249,14 +237,10 @@ function setView(view) {
 
 function updateStorageQuotaUi() {
   if (!els.storageQuotaFill || !els.storageQuotaText) return;
-  const usedBytes = getUsedStorageBytes();
+  const usedBytes = tracks.reduce((sum, track) => sum + (Number(track.size) || 0), 0);
   const usedPct = Math.min(100, (usedBytes / STORAGE_LIMIT_BYTES) * 100);
   els.storageQuotaFill.style.setProperty('--progress', `${usedPct.toFixed(2)}%`);
   els.storageQuotaText.textContent = `${formatBytes(usedBytes)} of ${formatBytes(STORAGE_LIMIT_BYTES)} used`;
-}
-
-function getUsedStorageBytes() {
-  return tracks.reduce((sum, track) => sum + (Number(track.size) || 0), 0);
 }
 
 async function init() {
@@ -288,7 +272,6 @@ async function init() {
 
 async function handleAuthChange(u) {
   user = u;
-  storageWarnedThisSession = false;
   els.appShell.classList.toggle('is-authenticated', !!user);
   if (els.settingsUserEmail) {
     els.settingsUserEmail.textContent = user ? user.email : 'Not logged in';
@@ -768,35 +751,13 @@ async function removeTrack(track) {
   if (!user) { toast('Login required'); return; }
   if (!confirm(`Are you sure you want to delete "${track.name}"?`)) return;
 
-  let paths = track?.path ? [track.path] : [];
-  if (!paths.length && user?.id && track?.id) {
-    const { data, error } = await supabase.storage
-      .from(BUCKET)
-      .list(user.id, { limit: 1000, search: `${track.id}__` });
-    if (error) {
-      console.error('Delete list failed', error);
-      toast('Delete failed');
-      return;
-    }
-    paths = (data || []).map((obj) => `${user.id}/${obj.name}`);
-  }
-
-  if (paths.length) {
-    const { error } = await supabase.storage.from(BUCKET).remove(paths);
-    if (error) {
-      console.error('Delete failed', error);
-      toast('Delete failed');
-      return;
-    }
-  }
-
-  try {
-    await deleteDbTrack(track.id);
-  } catch (err) {
-    console.error('Delete DB failed', err);
+  const { error } = await supabase.storage.from(BUCKET).remove([track.path]);
+  if (error) {
+    console.error('Delete failed', error);
     toast('Delete failed');
     return;
   }
+  await deleteDbTrack(track.id);
   if (track?.id) {
     favoriteTrackIds.delete(track.id);
     libraryTrackIds.delete(track.id);
@@ -955,15 +916,6 @@ async function handleUpload(files) {
   if (!user) { toast('Login to upload'); showAuthModal(); return; }
   if (!files || !files.length) return;
 
-  await refreshLibrary();
-  const usedBytes = getUsedStorageBytes();
-  if (usedBytes >= STORAGE_WARNING_BYTES && !storageWarnedThisSession) {
-    toast('Storage almost full. Delete some songs or upgrade plan.');
-    storageWarnedThisSession = true;
-  } else if (usedBytes < STORAGE_WARNING_BYTES) {
-    storageWarnedThisSession = false;
-  }
-
   isUploading = false;
   els.uploadFeedback?.classList.add('hidden');
   setUploadUiState(true, 'Preparing upload...', 0);
@@ -1025,7 +977,6 @@ async function handleUpload(files) {
       );
     }
 
-    let stopUploads = false;
     for (const t of parsed) {
       const item = uploadItemMap.get(t.id);
       if (item) {
@@ -1041,22 +992,9 @@ async function handleUpload(files) {
         onFileDone(true, item);
       } catch (err) {
         console.error(`Failed to upload "${t.name}":`, err.message);
-        if (isQuotaError(err)) {
-          toast('Storage full. Delete some songs or upgrade plan.');
-        } else {
-          const detail = err?.message ? ` - ${err.message}` : '';
-          toast(`Failed: ${t.name}${detail}`);
-        }
+        const detail = err?.message ? ` - ${err.message}` : '';
+        toast(`Failed: ${t.name}${detail}`);
         onFileDone(false, item);
-        if (isQuotaError(err)) {
-          stopUploads = true;
-        }
-      }
-
-      if (stopUploads) {
-        setUploadUiState(false, 'Storage full. Delete some songs or upgrade plan.', 0);
-        hideUploadUiStateLater();
-        return;
       }
 
       await new Promise((resolve) => setTimeout(resolve, 500));

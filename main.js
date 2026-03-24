@@ -1015,22 +1015,24 @@ async function handleUpload(files) {
   }
 }
 
-function xhrUploadToStorage(path, blob, contentType) {
-  return new Promise((resolve) => {
-    const xhr = new XMLHttpRequest();
-    const SUPABASE_URL = supabase.supabaseUrl || supabase.storageUrl?.replace('/storage/v1', '');
-    const url = `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${encodeURIComponent(path)}`;
+async function xhrUploadToStorage(path, blob, contentType) {
+  // Get real auth token from current session
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
 
-    console.log('=== XHR DEBUG ===');
-    console.log('BUCKET:', BUCKET);
-    console.log('PATH:', path);
-    console.log('URL:', url);
-    console.log('Auth key first 20 chars:', supabase.supabaseKey?.substring(0, 20));
-    console.log('Content-Type:', contentType);
-    console.log('File size:', blob.size);
+  if (!token) {
+    return { data: null, error: { message: 'Not authenticated' } };
+  }
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const url = `${supabase.supabaseUrl}/storage/v1/object/${BUCKET}/${path}`;
+
+    console.log('XHR uploading to:', url);
+    console.log('Token preview:', token.substring(0, 20));
 
     xhr.addEventListener('load', () => {
-      console.log('XHR status:', xhr.status, 'Response:', xhr.responseText);
+      console.log('XHR done:', xhr.status, xhr.responseText);
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve({ data: { path }, error: null });
       } else {
@@ -1039,20 +1041,18 @@ function xhrUploadToStorage(path, blob, contentType) {
     });
 
     xhr.addEventListener('error', () =>
-      resolve({ data: null, error: { message: 'Network error during upload' } })
+      resolve({ data: null, error: { message: 'Network error' } })
     );
-
     xhr.addEventListener('timeout', () =>
       resolve({ data: null, error: { message: 'Upload timed out' } })
     );
 
     xhr.timeout = 120000;
     xhr.open('POST', url);
-    xhr.setRequestHeader('Authorization', `Bearer ${supabase.supabaseKey}`);
+    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
     xhr.setRequestHeader('x-upsert', 'true');
-    const formData = new FormData();
-    formData.append('', blob, 'upload');
-    xhr.send(formData);
+    xhr.setRequestHeader('Content-Type', contentType || 'audio/mpeg');
+    xhr.send(blob);
   });
 }
 

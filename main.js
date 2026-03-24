@@ -944,7 +944,8 @@ async function handleUpload(files) {
         onFileDone(true, item);
       } catch (err) {
         console.error(`Failed to upload "${t.name}":`, err.message);
-        toast(`Failed: ${t.name}`);
+        const detail = err?.message ? ` - ${err.message}` : '';
+        toast(`Failed: ${t.name}${detail}`);
         onFileDone(false, item);
       }
     });

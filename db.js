@@ -1,5 +1,14 @@
 import { supabase } from './supabase.js';
 
+function withTimeout(promise, ms, message) {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => reject(new Error(message)), ms);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
+}
+
 export async function initDb() {
   return Promise.resolve();
 }
@@ -46,9 +55,13 @@ export async function saveDbTrack(track) {
     added_at: track.addedAt ? new Date(track.addedAt).toISOString() : new Date().toISOString()
   };
 
-  const { error } = await supabase
-    .from('tracks')
-    .upsert(payload, { onConflict: 'id' });
+  const { error } = await withTimeout(
+    supabase
+      .from('tracks')
+      .upsert(payload, { onConflict: 'id' }),
+    10000,
+    'Database save timed out'
+  );
 
   if (error) {
     console.error('Error saving track:', error.message);

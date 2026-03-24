@@ -977,12 +977,7 @@ async function handleUpload(files) {
       );
     }
 
-    const isMobileUpload = /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(navigator.userAgent)
-      || (navigator.maxTouchPoints || 0) > 1;
-    const uploadConcurrency = isMobileUpload ? 1 : 3;
-
-    // Upload 3 files at a time instead of 1 at a time
-    await uploadPool(parsed, uploadConcurrency, async (t) => {
+    for (const t of parsed) {
       const item = uploadItemMap.get(t.id);
       if (item) {
         item.status = 'uploading';
@@ -1001,7 +996,9 @@ async function handleUpload(files) {
         toast(`Failed: ${t.name}${detail}`);
         onFileDone(false, item);
       }
-    });
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
 
     const uploaded = completed - failed;
     setUploadUiState(false, `Upload complete! ${uploaded} song${uploaded !== 1 ? 's' : ''} added`, 100);
@@ -1018,27 +1015,9 @@ async function handleUpload(files) {
   }
 }
 
-// ─── NEW: uploadPool ──────────────────────────────────────────────
-// Runs at most `limit` tasks at the same time.
-// Think of it as a queue with `limit` workers pulling from it.
-// ─────────────────────────────────────────────────────────────────
-async function uploadPool(items, limit, task) {
-  const queue = [...items];
-  async function worker() {
-    while (queue.length > 0) {
-      const item = queue.shift();
-      if (item) await task(item);
-    }
-  }
-  await Promise.all(
-    Array.from({ length: Math.min(limit, items.length) }, () => worker())
-  );
-}
-
 // ─── NEW: uploadOneFile ───────────────────────────────────────────
 // Uploads one track to Supabase Storage then saves to DB.
-// Same logic as the old for-loop body, just extracted so it
-// can run concurrently inside uploadPool.
+// Used by the sequential uploader in handleUpload.
 // ─────────────────────────────────────────────────────────────────
 async function uploadOneFile(t) {
   if (!user?.id) throw new Error('Not logged in');
@@ -1048,11 +1027,22 @@ async function uploadOneFile(t) {
   const path = `${user.id}/${t.id}__${storageName}`;
 
   const contentType = t.type && t.type.trim() ? t.type : undefined;
-  const { error: upErr } = await supabase.storage
-    .from(BUCKET)
-    .upload(path, t.blob, { cacheControl: '3600', upsert: false, contentType });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000);
+  try {
+    const { error: upErr } = await supabase.storage
+      .from(BUCKET)
+      .upload(path, t.blob, { cacheControl: '3600', upsert: false, contentType, signal: controller.signal });
 
-  if (upErr) throw new Error(`Failed to upload ${t.name}: ${upErr.message}`);
+    if (upErr) throw new Error(`Failed to upload ${t.name}: ${upErr.message}`);
+  } catch (err) {
+    if (controller.signal.aborted) {
+      throw new Error(`Upload timed out for ${t.name}`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   const { data: pub } = supabase.storage.from(BUCKET).getPublicUrl(path);
 

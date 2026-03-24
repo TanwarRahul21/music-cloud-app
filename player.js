@@ -10,13 +10,19 @@ export class Player {
     try {
       await this.audio.play();
     } catch (err) {
-      console.warn("Autoplay prevented or playback interrupted", err);
+      if (err?.name !== 'AbortError') {
+        console.warn("Autoplay prevented or playback interrupted", err);
+      }
     }
   }
 
   async toggle() {
     if (this.audio.paused) {
-      await this.audio.play();
+      try {
+        await this.audio.play();
+      } catch (err) {
+        if (err?.name !== 'AbortError') throw err;
+      }
     } else {
       this.audio.pause();
     }

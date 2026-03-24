@@ -15,6 +15,9 @@ const els = {
   uploadProgressFill: document.getElementById("uploadProgressFill"),
   trackList: document.getElementById("trackList"),
   libraryMeta: document.getElementById("libraryMeta"),
+  emptyState: document.getElementById("emptyState"),
+  trackColsHeader: document.getElementById("trackColsHeader"),
+  clearAllBtn: document.getElementById("clearAllBtn"),
   audio: document.getElementById("audio"),
   playBtn: document.getElementById("playBtn"),
   prevBtn: document.getElementById("prevBtn"),
@@ -638,18 +641,16 @@ function highlightActiveRow() {
 
 function renderPlaylist() {
   els.libraryMeta.textContent = `${filteredTracks.length} song${filteredTracks.length === 1 ? "" : "s"}`;
+  const hasAnyTracks = tracks.length > 0;
+  if (els.emptyState) {
+    els.emptyState.style.display = hasAnyTracks ? 'none' : 'flex';
+  }
+  if (els.trackColsHeader) {
+    els.trackColsHeader.classList.toggle('hidden', filteredTracks.length === 0);
+  }
   els.trackList.innerHTML = "";
 
   if (!filteredTracks.length) {
-    els.trackList.innerHTML = `
-      <div class="row">
-        <div class="row__thumb"></div>
-        <div class="row__main">
-          <div class="row__title">No songs yet</div>
-          <div class="row__sub">Upload some audio to build your library</div>
-        </div>
-      </div>
-    `;
     return;
   }
 
@@ -765,6 +766,54 @@ async function removeTrack(track) {
   }
   toast(`"${track.name}" was deleted.`);
   await refreshLibrary();
+}
+
+async function clearAllTracks() {
+  if (!user) {
+    toast('Login required');
+    showAuthModal();
+    return;
+  }
+  if (!tracks.length) {
+    renderPlaylist();
+    toast('Library already empty');
+    return;
+  }
+  if (!confirm('Clear all tracks? This cannot be undone.')) return;
+
+  const paths = tracks.map((track) => track.path).filter(Boolean);
+
+  tracks = [];
+  filteredTracks = [];
+  favoriteTrackIds = new Set();
+  libraryTrackIds = new Set();
+  hasSavedLibraryCollection = true;
+  saveFavorites();
+  saveLibraryCollection();
+  stopPlayback();
+  updateStorageQuotaUi();
+  renderPlaylist();
+
+  let storageError = null;
+  if (paths.length) {
+    const { error } = await supabase.storage.from(BUCKET).remove(paths);
+    if (error) storageError = error;
+  }
+
+  try {
+    await clearAllDbTracks();
+  } catch (err) {
+    console.error('Clear DB failed', err);
+    storageError = storageError || err;
+  }
+
+  if (storageError) {
+    toast('Some items could not be cleared. Refreshing...');
+    await refreshLibrary();
+    return;
+  }
+
+  toast('Library cleared.');
 }
 
 function setUploadUiState(active, message = '', progress = 0) {
@@ -1058,6 +1107,11 @@ function wireEvents() {
 
   els.uploadBtnLabel.addEventListener("click", (e) => {
     if (isUploading) { e.preventDefault(); e.stopPropagation(); }
+  });
+
+  els.clearAllBtn?.addEventListener('click', (event) => {
+    event.preventDefault();
+    clearAllTracks();
   });
 
   els.playBtn.addEventListener("click", playPause);

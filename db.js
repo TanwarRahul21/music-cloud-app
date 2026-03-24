@@ -59,7 +59,7 @@ export async function saveDbTrack(track) {
     supabase
       .from('tracks')
       .upsert(payload, { onConflict: 'id' }),
-    10000,
+    15000,
     'Database save timed out'
   );
 

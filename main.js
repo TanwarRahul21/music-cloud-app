@@ -1021,7 +1021,13 @@ function xhrUploadToStorage(path, blob, contentType) {
     const SUPABASE_URL = supabase.supabaseUrl || supabase.storageUrl?.replace('/storage/v1', '');
     const url = `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${encodeURIComponent(path)}`;
 
-    console.log('XHR URL:', url);
+    console.log('=== XHR DEBUG ===');
+    console.log('BUCKET:', BUCKET);
+    console.log('PATH:', path);
+    console.log('URL:', url);
+    console.log('Auth key first 20 chars:', supabase.supabaseKey?.substring(0, 20));
+    console.log('Content-Type:', contentType);
+    console.log('File size:', blob.size);
 
     xhr.addEventListener('load', () => {
       console.log('XHR status:', xhr.status, 'Response:', xhr.responseText);
@@ -1044,8 +1050,9 @@ function xhrUploadToStorage(path, blob, contentType) {
     xhr.open('POST', url);
     xhr.setRequestHeader('Authorization', `Bearer ${supabase.supabaseKey}`);
     xhr.setRequestHeader('x-upsert', 'true');
-    xhr.setRequestHeader('Content-Type', contentType || 'audio/mpeg');
-    xhr.send(blob);
+    const formData = new FormData();
+    formData.append('', blob, 'upload');
+    xhr.send(formData);
   });
 }
 

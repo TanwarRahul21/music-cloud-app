@@ -1018,9 +1018,13 @@ async function handleUpload(files) {
 function xhrUploadToStorage(path, blob, contentType) {
   return new Promise((resolve) => {
     const xhr = new XMLHttpRequest();
-    const url = `${supabase.supabaseUrl}/storage/v1/object/${BUCKET}/${path}`;
+    const SUPABASE_URL = supabase.supabaseUrl || supabase.storageUrl?.replace('/storage/v1', '');
+    const url = `${SUPABASE_URL}/storage/v1/object/${BUCKET}/${encodeURIComponent(path)}`;
+
+    console.log('XHR URL:', url);
 
     xhr.addEventListener('load', () => {
+      console.log('XHR status:', xhr.status, 'Response:', xhr.responseText);
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve({ data: { path }, error: null });
       } else {

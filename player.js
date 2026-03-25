@@ -55,6 +55,11 @@ export class Player {
     return this.audio.currentTime;
   }
 
+  onEnded(handler) {
+    if (typeof handler !== 'function') return;
+    this.audio.addEventListener('ended', handler);
+  }
+
   cleanup() {
     this.audio.pause();
     this.audio.src = "";

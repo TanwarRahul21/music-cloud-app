@@ -357,7 +357,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 /* Track column headers */
 .track-cols-header {
   display: grid;
-  grid-template-columns: 32px 1fr 28px 52px;
+  grid-template-columns: 32px 1fr 28px 96px;
   gap: 12px;
   align-items: center;
   padding: 0 10px 6px;
@@ -380,7 +380,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 /* .row elements are created by JS */
 .row {
   display: grid;
-  grid-template-columns: 32px 1fr 28px 52px;
+  grid-template-columns: 32px 1fr 28px 96px;
   gap: 12px;
   align-items: center;
   padding: 6px 10px;
@@ -486,12 +486,77 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 8px;
   white-space: nowrap;
 }
 .row__dur-text { white-space: nowrap; }
 .row__delete { opacity: 0; transition: opacity var(--t-base), color var(--t-fast), background var(--t-fast); }
 .row:hover .row__delete { opacity: 1; }
+
+.row__menu {
+  width: 36px; height: 36px;
+  min-width: 36px; min-height: 36px;
+  border-radius: var(--radius-full);
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  transition: background var(--t-fast), color var(--t-fast);
+  touch-action: manipulation;
+}
+.row__menu:hover { color: var(--text-primary); background: var(--surface-hover); }
+
+@media (max-width: 768px) {
+  .row__menu {
+    width: 44px; height: 44px;
+    min-width: 44px; min-height: 44px;
+  }
+}
+
+/* Context menu */
+.context-menu__backdrop {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  z-index: 150;
+}
+
+.context-menu {
+  position: fixed;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  min-width: 220px;
+  box-shadow: var(--shadow-md);
+  padding: 6px 0;
+  z-index: 151;
+}
+
+.context-menu__item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--t-fast), color var(--t-fast);
+}
+
+.context-menu__item:hover { background: var(--surface-hover); }
+.context-menu__item--danger { color: var(--danger); }
+
+@media (max-width: 640px) {
+  .context-menu {
+    width: min(92vw, 320px);
+    left: 50% !important;
+    transform: translateX(-50%);
+  }
+}
 
 .row__actions { display: flex; align-items: center; gap: 4px; opacity: 0; transition: opacity var(--t-base); }
 

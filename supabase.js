@@ -56,6 +56,12 @@ export async function signUpWithPassword(email, password) {
 	return data;
 }
 
+export async function signInAnonymously() {
+	const { data, error } = await supabase.auth.signInAnonymously();
+	if (error) throw error;
+	return data;
+}
+
 export async function signOutUser() {
 	const { error } = await supabase.auth.signOut();
 	if (error) throw error;

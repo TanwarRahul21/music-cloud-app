@@ -77,6 +77,8 @@ const els = {
   storageQuota: document.getElementById('storageQuota'),
   storageQuotaFill: document.getElementById('storageQuotaFill'),
   storageQuotaText: document.getElementById('storageQuotaText'),
+  searchInput: document.getElementById('searchInput'),
+  searchClear: document.getElementById('searchClear'),
   dragOverlay: document.getElementById('dragOverlay'),
   heroUploadBtn: document.getElementById('heroUploadBtn'),
   emptyUploadBtn: document.getElementById('emptyUploadBtn'),
@@ -116,6 +118,7 @@ let currentView = 'all';
 let favoriteTrackIds = new Set();
 let libraryTrackIds = new Set();
 let hasSavedLibraryCollection = false;
+let searchQuery = '';
 
 function getFavoritesStorageKey() {
   return `${FAVORITES_KEY_PREFIX}:${user?.id || 'guest'}`;
@@ -246,6 +249,8 @@ function updateStorageQuotaUi() {
 async function init() {
   initTheme();
   player = new Player(els.audio);
+  player.onEnded(handleAudioEnded);
+  setupMediaSession();
   wireEvents();
   await initDb();
 
@@ -359,15 +364,17 @@ async function refreshLibrary() {
 }
 
 function applySearchFilter() {
+  let base = tracks;
   if (currentView === 'library') {
-    filteredTracks = tracks.filter((track) => isInLibrary(track.id));
-    return;
+    base = tracks.filter((track) => isInLibrary(track.id));
+  } else if (currentView === 'favorites') {
+    base = tracks.filter((track) => isFavorite(track.id));
   }
-  if (currentView === 'favorites') {
-    filteredTracks = tracks.filter((track) => isFavorite(track.id));
-    return;
-  }
-  filteredTracks = tracks;
+
+  const query = (searchQuery || '').toLowerCase().trim();
+  filteredTracks = query
+    ? base.filter((track) => ((track.title || track.name || '')).toLowerCase().includes(query))
+    : base;
 }
 
 function resolveArtworkUrl(track) {
@@ -457,6 +464,17 @@ function closeExpandedPlayer() {
   document.body.classList.remove('expanded-player-open');
 }
 
+function updateMediaSessionMetadata(track) {
+  if (!('mediaSession' in navigator) || !track) return;
+  const artworkUrl = resolveArtworkUrl(track);
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: track.title || track.name,
+    artist: track.artist || 'Music Cloud',
+    album: 'Music Cloud',
+    artwork: artworkUrl ? [{ src: artworkUrl, sizes: '512x512', type: 'image/png' }] : undefined,
+  });
+}
+
 function selectTrack(index, { autoplay }) {
   if (index < 0 || index >= filteredTracks.length) return;
   const track = filteredTracks[index];
@@ -477,6 +495,8 @@ function selectTrack(index, { autoplay }) {
   setArtwork(els.playerArt, els.playerArtImg, artworkUrl, `${track.name} cover art`);
   setArtwork(els.nowPlayingArt, els.nowPlayingImg, artworkUrl, `${track.name} cover art`);
   setArtwork(els.expandedArt, els.expandedArtImg, artworkUrl, `${track.name} cover art`);
+
+  updateMediaSessionMetadata(track);
 
   updateFavoriteButtons(track.id);
 
@@ -545,6 +565,37 @@ function prevTrack() {
   const currentFilteredIndex = filteredTracks.findIndex(t => t.id === tracks[currentIndex]?.id);
   const idx = currentFilteredIndex <= 0 ? filteredTracks.length - 1 : currentFilteredIndex - 1;
   selectTrack(idx, { autoplay: true });
+}
+
+function playNext() {
+  nextTrack();
+}
+
+function playPrev() {
+  prevTrack();
+}
+
+function handleAudioEnded() {
+  if (!els.audio) return;
+  if (isRepeatEnabled && currentIndex >= 0) {
+    els.audio.currentTime = 0;
+    els.audio.play().catch(() => updatePlayBtn());
+    return;
+  }
+  playNext();
+}
+
+function setupMediaSession() {
+  if (!('mediaSession' in navigator)) return;
+  navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
+  navigator.mediaSession.setActionHandler('previoustrack', () => playPrev());
+  navigator.mediaSession.setActionHandler('play', () => els.audio?.play());
+  navigator.mediaSession.setActionHandler('pause', () => els.audio?.pause());
+  navigator.mediaSession.setActionHandler('seekto', (details) => {
+    if (details?.seekTime != null && Number.isFinite(details.seekTime) && els.audio) {
+      els.audio.currentTime = details.seekTime;
+    }
+  });
 }
 
 function setPlayIcon(svgEl, isPaused) {
@@ -651,6 +702,79 @@ function highlightActiveRow() {
   }
 }
 
+let contextMenuEl = null;
+let contextMenuBackdrop = null;
+
+function hideContextMenu() {
+  contextMenuEl?.remove();
+  contextMenuBackdrop?.remove();
+  contextMenuEl = null;
+  contextMenuBackdrop = null;
+}
+
+function showContextMenu(track, triggerEvent) {
+  if (!track) return;
+  hideContextMenu();
+
+  contextMenuBackdrop = document.createElement('div');
+  contextMenuBackdrop.className = 'context-menu__backdrop';
+  contextMenuBackdrop.addEventListener('click', hideContextMenu, { once: true });
+
+  contextMenuEl = document.createElement('div');
+  contextMenuEl.className = 'context-menu';
+
+  const actions = [
+    {
+      label: 'Play',
+      handler: () => {
+        const idx = filteredTracks.findIndex((t) => t.id === track.id);
+        if (idx !== -1) selectTrack(idx, { autoplay: true });
+      },
+    },
+    {
+      label: isFavorite(track.id) ? 'Remove favorite' : 'Add to favorites',
+      handler: () => {
+        const nowFavorite = toggleFavorite(track.id);
+        updateFavoriteButtons(track.id);
+        toast(nowFavorite ? 'Added to favorites' : 'Removed from favorites');
+        renderPlaylist();
+      },
+    },
+    {
+      label: 'Delete',
+      destructive: true,
+      handler: async () => {
+        await removeTrack(track);
+      },
+    },
+  ];
+
+  actions.forEach((action) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `context-menu__item${action.destructive ? ' context-menu__item--danger' : ''}`;
+    btn.textContent = action.label;
+    btn.addEventListener('click', async () => {
+      hideContextMenu();
+      await action.handler();
+    });
+    contextMenuEl.appendChild(btn);
+  });
+
+  document.body.appendChild(contextMenuBackdrop);
+  document.body.appendChild(contextMenuEl);
+
+  const touch = triggerEvent?.touches?.[0] || triggerEvent;
+  const x = touch?.clientX ?? window.innerWidth / 2;
+  const y = touch?.clientY ?? window.innerHeight / 2;
+  const menuWidth = contextMenuEl.offsetWidth || 220;
+  const menuHeight = contextMenuEl.offsetHeight || 140;
+  const left = Math.min(Math.max(12, x - menuWidth / 2), window.innerWidth - menuWidth - 12);
+  const top = Math.min(Math.max(12, y + 8), window.innerHeight - menuHeight - 12);
+  contextMenuEl.style.left = `${left}px`;
+  contextMenuEl.style.top = `${top}px`;
+}
+
 function renderPlaylist() {
   els.libraryMeta.textContent = `${filteredTracks.length} song${filteredTracks.length === 1 ? "" : "s"}`;
   const hasAnyTracks = tracks.length > 0;
@@ -703,6 +827,13 @@ function renderPlaylist() {
       </button>
       <div class="row__dur">
         <span class="row__dur-text">${durText}</span>
+        <button class="row__menu" type="button" data-action="menu" aria-label="More options">
+          <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" aria-hidden="true">
+            <circle cx="12" cy="5" r="1.6"></circle>
+            <circle cx="12" cy="12" r="1.6"></circle>
+            <circle cx="12" cy="19" r="1.6"></circle>
+          </svg>
+        </button>
         <button class="row__delete" type="button" data-action="delete" aria-label="Delete">
           <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none">
             <polyline points="3 6 5 6 21 6"></polyline>
@@ -728,6 +859,19 @@ function renderPlaylist() {
 
     const favBtn = row.querySelector('.row__fav');
     favBtn.classList.toggle('row__fav--active', isFavorite(track.id));
+
+    const menuBtn = row.querySelector('.row__menu');
+    const openMenu = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      showContextMenu(track, event);
+    };
+    if (menuBtn) {
+      menuBtn.addEventListener('click', openMenu);
+      menuBtn.addEventListener('touchend', (event) => {
+        openMenu(event);
+      }, { passive: false });
+    }
 
     row.addEventListener('click', async (e) => {
       const btn = e.target.closest('button');
@@ -791,8 +935,6 @@ async function clearAllTracks() {
     toast('Library already empty');
     return;
   }
-  if (!confirm('Clear all tracks? This cannot be undone.')) return;
-
   const paths = tracks.map((track) => track.path).filter(Boolean);
 
   tracks = [];
@@ -1150,18 +1292,36 @@ function wireEvents() {
     if (e.dataTransfer.files.length > 0) handleUpload(e.dataTransfer.files);
   });
 
+  if (els.searchInput) {
+    const applyQuery = (val) => {
+      searchQuery = val;
+      applySearchFilter();
+      renderPlaylist();
+      els.searchClear?.classList.toggle('hidden', !searchQuery.trim());
+    };
+    els.searchInput.addEventListener('input', (event) => {
+      applyQuery(event.target.value || '');
+    });
+    els.searchClear?.addEventListener('click', () => {
+      applyQuery('');
+      if (els.searchInput) els.searchInput.value = '';
+    });
+  }
+
   els.uploadBtnLabel.addEventListener("click", (e) => {
     if (isUploading) { e.preventDefault(); e.stopPropagation(); }
   });
 
   els.clearAllBtn?.addEventListener('click', (event) => {
     event.preventDefault();
-    clearAllTracks();
+    if (confirm('Delete all songs? This cannot be undone.')) {
+      clearAllTracks();
+    }
   });
 
   els.playBtn.addEventListener("click", playPause);
-  els.prevBtn.addEventListener("click", prevTrack);
-  els.nextBtn.addEventListener("click", nextTrack);
+  els.prevBtn.addEventListener("click", playPrev);
+  els.nextBtn.addEventListener("click", playNext);
 
   els.expandPlayerBtn?.addEventListener('click', (event) => {
     event.stopPropagation();
@@ -1183,15 +1343,15 @@ function wireEvents() {
   });
 
   if (els.playBtnMobile) els.playBtnMobile.addEventListener("click", playPause);
-  if (els.prevBtnMobile) els.prevBtnMobile.addEventListener("click", prevTrack);
-  if (els.nextBtnMobile) els.nextBtnMobile.addEventListener("click", nextTrack);
+  if (els.prevBtnMobile) els.prevBtnMobile.addEventListener("click", playPrev);
+  if (els.nextBtnMobile) els.nextBtnMobile.addEventListener("click", playNext);
   if (els.playBtnDesktop) els.playBtnDesktop.addEventListener("click", playPause);
-  if (els.prevBtnDesktop) els.prevBtnDesktop.addEventListener("click", prevTrack);
-  if (els.nextBtnDesktop) els.nextBtnDesktop.addEventListener("click", nextTrack);
+  if (els.prevBtnDesktop) els.prevBtnDesktop.addEventListener("click", playPrev);
+  if (els.nextBtnDesktop) els.nextBtnDesktop.addEventListener("click", playNext);
 
   els.expandedPlayBtn?.addEventListener('click', playPause);
-  els.expandedPrevBtn?.addEventListener('click', prevTrack);
-  els.expandedNextBtn?.addEventListener('click', nextTrack);
+  els.expandedPrevBtn?.addEventListener('click', playPrev);
+  els.expandedNextBtn?.addEventListener('click', playNext);
 
   els.expandedShuffleBtn?.addEventListener('click', () => {
     isShuffleEnabled = !isShuffleEnabled;
@@ -1299,14 +1459,7 @@ function wireEvents() {
 
   els.audio.addEventListener("play", updatePlayBtn);
   els.audio.addEventListener("pause", updatePlayBtn);
-  els.audio.addEventListener('ended', () => {
-    if (isRepeatEnabled && currentIndex >= 0) {
-      els.audio.currentTime = 0;
-      els.audio.play().catch(() => updatePlayBtn());
-      return;
-    }
-    nextTrack();
-  });
+  // ended handler is registered via player to keep logic centralized
 
   els.playerFavBtn?.addEventListener('click', (event) => {
     event.stopPropagation();

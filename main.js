@@ -102,12 +102,18 @@ let tracks = [];
 let filteredTracks = [];
 let playlists = [];
 let currentIndex = -1;
+let currentTrackIndex = -1;
+let currentPlaylist = [];
 let isSeeking = false;
 let isExpandedSeeking = false;
 let isShuffleEnabled = false;
 let isRepeatEnabled = false;
 let player;
 let isUploading = false;
+let isSkipping = false;
+let playbackRequestId = 0;
+let wasPlaying = false;
+let wakeLockSentinel = null;
 
 const BUCKET = 'Songs';
 const STORAGE_LIMIT_BYTES = 4 * 1024 * 1024 * 1024;
@@ -249,7 +255,8 @@ function updateStorageQuotaUi() {
 async function init() {
   initTheme();
   player = new Player(els.audio);
-  player.onEnded(handleAudioEnded);
+  els.audio.removeEventListener('ended', onSongEnded);
+  els.audio.addEventListener('ended', onSongEnded);
   setupMediaSession();
   wireEvents();
   await initDb();
@@ -375,6 +382,8 @@ function applySearchFilter() {
   filteredTracks = query
     ? base.filter((track) => ((track.title || track.name || '')).toLowerCase().includes(query))
     : base;
+
+  syncCurrentPlaylist();
 }
 
 function resolveArtworkUrl(track) {
@@ -401,8 +410,94 @@ function setArtwork(containerEl, imgEl, src, altText) {
 }
 
 function getCurrentTrack() {
-  if (currentIndex < 0 || currentIndex >= tracks.length) return null;
-  return tracks[currentIndex] || null;
+  if (currentTrackIndex < 0 || currentTrackIndex >= currentPlaylist.length) return null;
+  return currentPlaylist[currentTrackIndex] || null;
+}
+
+function syncCurrentPlaylist() {
+  const activeTrackId = tracks[currentIndex]?.id || currentPlaylist[currentTrackIndex]?.id || null;
+  currentPlaylist = [...filteredTracks];
+
+  if (!currentPlaylist.length) {
+    currentTrackIndex = -1;
+    currentIndex = -1;
+    return;
+  }
+
+  if (!activeTrackId) {
+    currentTrackIndex = -1;
+    currentIndex = -1;
+    return;
+  }
+
+  const nextPlaylistIndex = currentPlaylist.findIndex((track) => track.id === activeTrackId);
+  if (nextPlaylistIndex >= 0) {
+    currentTrackIndex = nextPlaylistIndex;
+    currentIndex = tracks.findIndex((track) => track.id === activeTrackId);
+    return;
+  }
+
+  currentTrackIndex = 0;
+  currentIndex = tracks.findIndex((track) => track.id === currentPlaylist[0].id);
+}
+
+async function playTrack(track, { autoplay = true } = {}) {
+  if (!track?.url || !els.audio) return;
+
+  const requestId = ++playbackRequestId;
+
+  try {
+    // Reset previous source and wait briefly to avoid mobile abort races.
+    els.audio.pause();
+    els.audio.src = '';
+    els.audio.load();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    if (requestId !== playbackRequestId) return;
+
+    els.audio.src = track.url;
+    els.audio.load();
+
+    if (!autoplay) {
+      updatePlayBtn();
+      return;
+    }
+
+    const playPromise = els.audio.play();
+    if (playPromise !== undefined) {
+      await playPromise;
+    }
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      console.log('Skip abort ignored');
+    } else {
+      console.error('Playback error:', err);
+    }
+  } finally {
+    updatePlayBtn();
+  }
+}
+
+async function requestWakeLock() {
+  if (!('wakeLock' in navigator) || wakeLockSentinel || document.hidden) return;
+  try {
+    wakeLockSentinel = await navigator.wakeLock.request('screen');
+    wakeLockSentinel.addEventListener('release', () => {
+      wakeLockSentinel = null;
+    });
+  } catch (err) {
+    console.warn('Wake lock unavailable:', err?.message || err);
+  }
+}
+
+async function releaseWakeLock() {
+  if (!wakeLockSentinel) return;
+  try {
+    await wakeLockSentinel.release();
+  } catch {
+    // Ignore release errors when browser already released lock.
+  }
+  wakeLockSentinel = null;
 }
 
 function getTrackQualityLabel(track) {
@@ -478,6 +573,8 @@ function updateMediaSessionMetadata(track) {
 function selectTrack(index, { autoplay }) {
   if (index < 0 || index >= filteredTracks.length) return;
   const track = filteredTracks[index];
+  currentPlaylist = [...filteredTracks];
+  currentTrackIndex = index;
   currentIndex = tracks.findIndex((t) => t.id === track.id);
 
   els.seek.value = "0";
@@ -509,18 +606,15 @@ function selectTrack(index, { autoplay }) {
   applyDynamicColor(currentIndex);
   highlightActiveRow();
 
-  if (autoplay) {
-    player.loadAndPlay(track.url).then(updatePlayBtn);
-  } else {
-    els.audio.src = track.url;
-  }
-  updatePlayBtn();
+  playTrack(track, { autoplay });
   syncExpandedPlaybackProgress();
 }
 
 function stopPlayback() {
   player.stop();
   currentIndex = -1;
+  currentTrackIndex = -1;
+  currentPlaylist = [...filteredTracks];
   els.seek.value = "0";
   els.timeCurrent.textContent = "0:00";
   els.timeDuration.textContent = "0:00";
@@ -546,50 +640,78 @@ function playPause() {
   player.toggle().then(updatePlayBtn).catch(() => updatePlayBtn());
 }
 
-function nextTrack() {
-  if (!filteredTracks.length) return;
-  if (isShuffleEnabled && filteredTracks.length > 1) {
-    const currentTrackId = tracks[currentIndex]?.id;
-    const candidates = filteredTracks.filter((track) => track.id !== currentTrackId);
+async function playNext() {
+  syncCurrentPlaylist();
+  if (!currentPlaylist.length) return;
+
+  if (isShuffleEnabled && currentPlaylist.length > 1) {
+    const candidates = currentPlaylist.filter((_, idx) => idx !== currentTrackIndex);
     const randomTrack = candidates[Math.floor(Math.random() * candidates.length)];
-    const randomIndex = filteredTracks.findIndex((track) => track.id === randomTrack?.id);
-    if (randomIndex >= 0) { selectTrack(randomIndex, { autoplay: true }); return; }
-  }
-  const currentFilteredIndex = filteredTracks.findIndex(t => t.id === tracks[currentIndex]?.id);
-  const idx = currentFilteredIndex >= filteredTracks.length - 1 ? 0 : currentFilteredIndex + 1;
-  selectTrack(idx, { autoplay: true });
-}
-
-function prevTrack() {
-  if (!filteredTracks.length) return;
-  const currentFilteredIndex = filteredTracks.findIndex(t => t.id === tracks[currentIndex]?.id);
-  const idx = currentFilteredIndex <= 0 ? filteredTracks.length - 1 : currentFilteredIndex - 1;
-  selectTrack(idx, { autoplay: true });
-}
-
-function playNext() {
-  nextTrack();
-}
-
-function playPrev() {
-  prevTrack();
-}
-
-function handleAudioEnded() {
-  if (!els.audio) return;
-  if (isRepeatEnabled && currentIndex >= 0) {
-    els.audio.currentTime = 0;
-    els.audio.play().catch(() => updatePlayBtn());
+    const randomIndex = currentPlaylist.findIndex((track) => track.id === randomTrack?.id);
+    if (randomIndex >= 0) {
+      selectTrack(randomIndex, { autoplay: true });
+    }
     return;
   }
-  playNext();
+
+  const atLastTrack = currentTrackIndex >= currentPlaylist.length - 1;
+  if (atLastTrack && !isRepeatEnabled) {
+    stopPlayback();
+    return;
+  }
+
+  const nextIndex = atLastTrack ? 0 : currentTrackIndex + 1;
+  selectTrack(nextIndex, { autoplay: true });
+}
+
+async function playPrev() {
+  syncCurrentPlaylist();
+  if (!currentPlaylist.length) return;
+
+  if (isShuffleEnabled && currentPlaylist.length > 1) {
+    const candidates = currentPlaylist.filter((_, idx) => idx !== currentTrackIndex);
+    const randomTrack = candidates[Math.floor(Math.random() * candidates.length)];
+    const randomIndex = currentPlaylist.findIndex((track) => track.id === randomTrack?.id);
+    if (randomIndex >= 0) {
+      selectTrack(randomIndex, { autoplay: true });
+    }
+    return;
+  }
+
+  const prevIndex = currentTrackIndex <= 0 ? currentPlaylist.length - 1 : currentTrackIndex - 1;
+  selectTrack(prevIndex, { autoplay: true });
+}
+
+async function safePlayNext() {
+  if (isSkipping) return;
+  isSkipping = true;
+  try {
+    await playNext();
+  } finally {
+    setTimeout(() => { isSkipping = false; }, 500);
+  }
+}
+
+async function safePlayPrev() {
+  if (isSkipping) return;
+  isSkipping = true;
+  try {
+    await playPrev();
+  } finally {
+    setTimeout(() => { isSkipping = false; }, 500);
+  }
+}
+
+function onSongEnded() {
+  console.log('Song ended, playing next...');
+  void playNext();
 }
 
 function setupMediaSession() {
   if (!('mediaSession' in navigator)) return;
-  navigator.mediaSession.setActionHandler('nexttrack', () => playNext());
-  navigator.mediaSession.setActionHandler('previoustrack', () => playPrev());
-  navigator.mediaSession.setActionHandler('play', () => els.audio?.play());
+  navigator.mediaSession.setActionHandler('nexttrack', safePlayNext);
+  navigator.mediaSession.setActionHandler('previoustrack', safePlayPrev);
+  navigator.mediaSession.setActionHandler('play', () => els.audio?.play().catch(() => {}));
   navigator.mediaSession.setActionHandler('pause', () => els.audio?.pause());
   navigator.mediaSession.setActionHandler('seekto', (details) => {
     if (details?.seekTime != null && Number.isFinite(details.seekTime) && els.audio) {
@@ -1320,8 +1442,8 @@ function wireEvents() {
   });
 
   els.playBtn.addEventListener("click", playPause);
-  els.prevBtn.addEventListener("click", playPrev);
-  els.nextBtn.addEventListener("click", playNext);
+  els.prevBtn.addEventListener("click", safePlayPrev);
+  els.nextBtn.addEventListener("click", safePlayNext);
 
   els.expandPlayerBtn?.addEventListener('click', (event) => {
     event.stopPropagation();
@@ -1343,19 +1465,20 @@ function wireEvents() {
   });
 
   if (els.playBtnMobile) els.playBtnMobile.addEventListener("click", playPause);
-  if (els.prevBtnMobile) els.prevBtnMobile.addEventListener("click", playPrev);
-  if (els.nextBtnMobile) els.nextBtnMobile.addEventListener("click", playNext);
+  if (els.prevBtnMobile) els.prevBtnMobile.addEventListener("click", safePlayPrev);
+  if (els.nextBtnMobile) els.nextBtnMobile.addEventListener("click", safePlayNext);
   if (els.playBtnDesktop) els.playBtnDesktop.addEventListener("click", playPause);
-  if (els.prevBtnDesktop) els.prevBtnDesktop.addEventListener("click", playPrev);
-  if (els.nextBtnDesktop) els.nextBtnDesktop.addEventListener("click", playNext);
+  if (els.prevBtnDesktop) els.prevBtnDesktop.addEventListener("click", safePlayPrev);
+  if (els.nextBtnDesktop) els.nextBtnDesktop.addEventListener("click", safePlayNext);
 
   els.expandedPlayBtn?.addEventListener('click', playPause);
-  els.expandedPrevBtn?.addEventListener('click', playPrev);
-  els.expandedNextBtn?.addEventListener('click', playNext);
+  els.expandedPrevBtn?.addEventListener('click', safePlayPrev);
+  els.expandedNextBtn?.addEventListener('click', safePlayNext);
 
   els.expandedShuffleBtn?.addEventListener('click', () => {
     isShuffleEnabled = !isShuffleEnabled;
     els.expandedShuffleBtn.classList.toggle('is-active', isShuffleEnabled);
+    syncCurrentPlaylist();
   });
 
   els.expandedRepeatBtn?.addEventListener('click', () => {
@@ -1367,6 +1490,7 @@ function wireEvents() {
     event.stopPropagation();
     isShuffleEnabled = !isShuffleEnabled;
     els.shuffleBtn.classList.toggle('is-active', isShuffleEnabled);
+    syncCurrentPlaylist();
   });
 
   els.repeatBtn?.addEventListener('click', (event) => {
@@ -1459,7 +1583,27 @@ function wireEvents() {
 
   els.audio.addEventListener("play", updatePlayBtn);
   els.audio.addEventListener("pause", updatePlayBtn);
-  // ended handler is registered via player to keep logic centralized
+  els.audio.addEventListener('play', () => {
+    wasPlaying = true;
+    void requestWakeLock();
+  });
+  els.audio.addEventListener('pause', () => {
+    wasPlaying = false;
+    void releaseWakeLock();
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      wasPlaying = !els.audio.paused;
+      void releaseWakeLock();
+      return;
+    }
+
+    void requestWakeLock();
+    if (wasPlaying && els.audio.paused) {
+      els.audio.play().catch(() => {});
+    }
+  });
 
   els.playerFavBtn?.addEventListener('click', (event) => {
     event.stopPropagation();

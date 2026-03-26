@@ -1,6 +1,7 @@
 export class Player {
   constructor(audioElement) {
     this.audio = audioElement;
+    this.endedHandler = null;
   }
 
   // Look closely at this function! 
@@ -57,6 +58,10 @@ export class Player {
 
   onEnded(handler) {
     if (typeof handler !== 'function') return;
+    if (this.endedHandler) {
+      this.audio.removeEventListener('ended', this.endedHandler);
+    }
+    this.endedHandler = handler;
     this.audio.addEventListener('ended', handler);
   }
 
